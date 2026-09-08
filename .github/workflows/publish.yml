@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: adaptgurus/cloudstack
-          ref: ca9e6b6846be7488dc325358a57a4835ff7dcd89
+          ref: fda2b9789ccfed8bbdad510a01428368e9e6286a
           persist-credentials: false
       - name: Build twice, test, compare complete runtime contents
         run: python3 tools/layersentry/k8s/artifacts/build.py '${{ matrix.component }}' --output reports
