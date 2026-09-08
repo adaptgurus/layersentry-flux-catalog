@@ -1,0 +1,58 @@
+name: Publish pinned qualification artifacts
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [ccm, csi]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: adaptgurus/cloudstack
+          ref: 1261a155ea04655de4577a46186ba58b40b30756
+          persist-credentials: false
+      - name: Build twice, test, compare complete runtime contents
+        run: python3 tools/layersentry/k8s/artifacts/build.py '${{ matrix.component }}' --output reports
+      - name: Publish and verify registry pull identity
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPONENT: ${{ matrix.component }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DOCKER_CONFIG="$(mktemp -d)"
+          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u adaptgurus --password-stdin
+          image="ghcr.io/adaptgurus/layersentry-cloudstack-${COMPONENT}"
+          tag="qualification-${GITHUB_SHA}"
+          original_id="$(docker image inspect "layersentry-${COMPONENT}:qualification" --format '{{.Id}}')"
+          docker tag "layersentry-${COMPONENT}:qualification" "${image}:${tag}"
+          docker push "${image}:${tag}"
+          digest="$(docker image inspect "${image}:${tag}" --format '{{index .RepoDigests 0}}')"
+          docker pull "$digest"
+          test "$(docker image inspect "$digest" --format '{{.Id}}')" = "$original_id"
+          export VERIFIED_IMAGE="$digest"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          path=Path('reports')/(os.environ['COMPONENT']+'.json')
+          report=json.loads(path.read_text())
+          report.update(image=os.environ['VERIFIED_IMAGE'],pullByDigestVerified=True)
+          path.write_text(json.dumps(report,indent=2)+'\n')
+          print(json.dumps(report))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: evidence-${{ matrix.component }}
+          path: reports/*.json
+          if-no-files-found: error
