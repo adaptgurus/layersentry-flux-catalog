@@ -14,12 +14,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: [ccm, csi]
+        component: [capc]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: adaptgurus/cloudstack
-          ref: 1261a155ea04655de4577a46186ba58b40b30756
+          ref: ca9e6b6846be7488dc325358a57a4835ff7dcd89
           persist-credentials: false
       - name: Build twice, test, compare complete runtime contents
         run: python3 tools/layersentry/k8s/artifacts/build.py '${{ matrix.component }}' --output reports
@@ -33,7 +33,7 @@ jobs:
           export DOCKER_CONFIG="$(mktemp -d)"
           trap 'rm -rf "$DOCKER_CONFIG"' EXIT
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u adaptgurus --password-stdin
-          image="ghcr.io/adaptgurus/layersentry-cloudstack-${COMPONENT}"
+          image="ghcr.io/adaptgurus/layersentry-capc"
           tag="qualification-${GITHUB_SHA}"
           original_id="$(docker image inspect "layersentry-${COMPONENT}:qualification" --format '{{.Id}}')"
           docker tag "layersentry-${COMPONENT}:qualification" "${image}:${tag}"
