@@ -1,0 +1,193 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cloudstack-csi-node
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudstack-csi-node
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: "10%"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudstack-csi-node
+        app.kubernetes.io/part-of: cloudstack-csi-driver
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccountName: cloudstack-csi-node
+      nodeSelector:
+        kubernetes.io/os: linux
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+          tolerationSeconds: 300
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+
+      containers:
+        - name: cloudstack-csi-node
+          image: ghcr.io/adaptgurus/layersentry-cloudstack-csi@sha256:448e6909747662a399c9d9048a25a8c37f30072503413fa245c249050a02599a
+          imagePullPolicy: IfNotPresent
+          args:
+            - "node"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--cloudstack-config=/etc/cloudstack-csi-driver/cloud-config"
+            - "--logging-format=text"
+            - "--node-name=$(NODE_NAME)"
+            - "--v=4"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+              # needed so that any mounts setup inside this container are
+              # propagated back to the host machine.
+              mountPropagation: Bidirectional
+            - name: device-dir
+              mountPath: /dev
+            - name: cloud-init-dir
+              mountPath: /run/cloud-init/
+            - name: sys-dir
+              mountPath: /sys  
+            # Comment the above 2 lines and uncomment the next 2 lines for Ignition support
+            # - name: ignition-dir
+            #   mountPath: /run/metadata
+            - name: cloudstack-conf
+              mountPath: /etc/cloudstack-csi-driver
+          ports:
+            - name: healthz
+              containerPort: 9808
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            limits:
+              cpu: "200m"
+              memory: 200Mi
+            requests:
+              cpu: "50m"
+              memory: 50Mi
+          securityContext:
+            # readOnlyRootFilesystem: true
+            privileged: true
+
+        - name: node-driver-registrar
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar@sha256:f25af73ee708ff9c82595ae99493cdef9295bd96953366cddf36305f82555dac
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)"
+            - "--v=5"
+            - "--health-port=9809"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: /var/lib/kubelet/plugins/csi.cloudstack.apache.org/csi.sock
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+          ports:
+            - containerPort: 9809
+              name: healthz
+          livenessProbe:
+            exec:
+              command:
+                - /csi-node-driver-registrar
+                - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+                - --mode=kubelet-registration-probe
+            initialDelaySeconds: 30
+            periodSeconds: 90
+            timeoutSeconds: 15
+          resources:
+            limits:
+              cpu: "200m"
+              memory: 200Mi
+            requests:
+              cpu: "50m"
+              memory: 50Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+
+        - name: liveness-probe
+          image: registry.k8s.io/sig-storage/livenessprobe@sha256:5baeb4a6d7d517434292758928bb33efc6397368cbb48c8a4cf29496abf4e987
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--v=4"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+          resources:
+            limits:
+              cpu: "200m"
+              memory: 250Mi
+            requests:
+              cpu: "50m"
+              memory: 50Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+
+      volumes:
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi.cloudstack.apache.org/
+            type: DirectoryOrCreate
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: device-dir
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+        - name: cloud-init-dir
+          hostPath:
+            path: /run/cloud-init/
+            type: Directory
+        - name: sys-dir
+          hostPath:
+            path: /sys
+            type: Directory    
+        # Comment the above 4 lines and uncomment the next 4 lines for Ignition support
+        # - name: ignition-dir
+        #   hostPath:
+        #     path: /run/metadata
+        #     type: Directory
+        - name: cloudstack-conf
+          secret:
+            secretName: cloudstack-secret

@@ -1,0 +1,144 @@
+{
+  "rke2": "v1.36.4+rke2r1",
+  "cni": "canal",
+  "flux": "v2.9.5",
+  "upstreamInputs": {
+    "rke2-images-core.linux-amd64.txt": {
+      "url": "https://github.com/rancher/rke2/releases/download/v1.36.4%2Brke2r1/rke2-images-core.linux-amd64.txt",
+      "sha256": "236415009819ebf24da0b740549ebad723af32ba60ce87da0902863a22def780"
+    },
+    "rke2-images-canal.linux-amd64.txt": {
+      "url": "https://github.com/rancher/rke2/releases/download/v1.36.4%2Brke2r1/rke2-images-canal.linux-amd64.txt",
+      "sha256": "5d1d0993b7a3ec956d2a5739a2e4b8e108640970f7af9bc8e7395be5cb2016b2"
+    },
+    "sha256sum-amd64.txt": {
+      "url": "https://github.com/rancher/rke2/releases/download/v1.36.4%2Brke2r1/sha256sum-amd64.txt",
+      "sha256": "8e12805c4bda79bec2fd20c89f705af3cb2ed11ea8854dc4937fca41b124b57a"
+    }
+  },
+  "images": [
+    {
+      "reference": "docker.io/rancher/hardened-addon-resizer:1.8.23-build20260819",
+      "immutable": "docker.io/rancher/hardened-addon-resizer@sha256:8026310fc44d985bf7c02434ad11d5f826a1aa1567606eea121b24ba9b3b0590"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-calico:v3.32.1-build20260827",
+      "immutable": "docker.io/rancher/hardened-calico@sha256:a86f731f4fceb583a5eb305276c4943a88fd3f887d26165acf0cea917e6408e2"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-cluster-autoscaler:v1.10.3-build20260819",
+      "immutable": "docker.io/rancher/hardened-cluster-autoscaler@sha256:c9b9b027e4d2cf1731311f9714f4aa633d37d7b0a72c9d3e6fc7a0594350d27c"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-coredns:v1.14.7-build20260819",
+      "immutable": "docker.io/rancher/hardened-coredns@sha256:e9435ef6526a98e8d01d98a85d23770859ca49028ebd282912ae5e76f92c0166"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-dns-node-cache:1.26.8-build20260819",
+      "immutable": "docker.io/rancher/hardened-dns-node-cache@sha256:54a53cb983d47579a8e7cdcd9ae38bc58ff85c28c63fd26de02ce332d5f988ee"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-etcd:v3.6.14-k3s1-build20260819",
+      "immutable": "docker.io/rancher/hardened-etcd@sha256:4f7ffbb3399c9f8137f5d0dd3ca0eddc7909e5d0155b35f1b0449baf96d61bfa"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-flannel:v0.28.9-build20260819",
+      "immutable": "docker.io/rancher/hardened-flannel@sha256:8cf57d72f2db9ede62d85474b9241edc08f4fd0e11f340bb9c613e4fe292156e"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-k8s-metrics-server:v0.9.0-build20260819",
+      "immutable": "docker.io/rancher/hardened-k8s-metrics-server@sha256:4935e86e846d75591113f64ad4e0402718a1eda08f6900a9325d54f1df64945c"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-kubernetes:v1.36.4-rke2r1-build20260821",
+      "immutable": "docker.io/rancher/hardened-kubernetes@sha256:c8e5263407ac439de1dcdde98c7623efb9e17050715a80259d8bd5e81b5a9289"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-snapshot-controller:v8.6.0-build20260819",
+      "immutable": "docker.io/rancher/hardened-snapshot-controller@sha256:8d5872d767f93393273cb1ecad81e4bc08af65311d206bc31ee8f48bc58e51c4"
+    },
+    {
+      "reference": "docker.io/rancher/hardened-traefik:v3.7.11-build20260819",
+      "immutable": "docker.io/rancher/hardened-traefik@sha256:dff360a22c8a28c2af3e78b2b4cf09a6c8edc199e27eb9f7c417bfc1ac41078e"
+    },
+    {
+      "reference": "docker.io/rancher/klipper-helm:v0.13.3-build20260820",
+      "immutable": "docker.io/rancher/klipper-helm@sha256:ba922718d919920b6b6168e3f55f8effa85032a38bf44d8cc5f4df79a2fe405d"
+    },
+    {
+      "reference": "docker.io/rancher/klipper-lb:v0.4.17",
+      "immutable": "docker.io/rancher/klipper-lb@sha256:910944bb0bd94f060a82a56ca1ea1c577d3e49b3473a093a47a985f32e92d94a"
+    },
+    {
+      "reference": "docker.io/rancher/mirrored-pause:3.10.2",
+      "immutable": "docker.io/rancher/mirrored-pause@sha256:f548e0e8e3dc1896ca956272154dde3314e8cc4fde0a57577ee9fa1c63f5baf4"
+    },
+    {
+      "reference": "docker.io/rancher/rke2-cloud-provider:v1.36.4-0.20260817193921-a2fc9574e060-build20260820",
+      "immutable": "docker.io/rancher/rke2-cloud-provider@sha256:95a33533d97b10502be19e4f3e60e7ce9c30f4879084709af96259a01253f044"
+    },
+    {
+      "reference": "docker.io/rancher/rke2-runtime:v1.36.4-rke2r1",
+      "immutable": "docker.io/rancher/rke2-runtime@sha256:411f197f1085472909c6e5f7434b64f1bf78ac3f8b82fac5a4d86d7a0a831cd9"
+    },
+    {
+      "reference": "ghcr.io/fluxcd/helm-controller:v1.6.4",
+      "immutable": "ghcr.io/fluxcd/helm-controller@sha256:8ff15409e46d354338045f483d58ca9cb35dffa2f87e4addd1f5eba1e6a9175f"
+    },
+    {
+      "reference": "ghcr.io/fluxcd/image-automation-controller:v1.2.5",
+      "immutable": "ghcr.io/fluxcd/image-automation-controller@sha256:e1a2720d3951694609c39635886d5dcb15b7dffe0b8248461c6693539c522a28"
+    },
+    {
+      "reference": "ghcr.io/fluxcd/image-reflector-controller:v1.2.5",
+      "immutable": "ghcr.io/fluxcd/image-reflector-controller@sha256:c83ce5c06fed9ebb308cd5165bd144ee934c720f6b47e0da2180869092063c82"
+    },
+    {
+      "reference": "ghcr.io/fluxcd/kustomize-controller:v1.9.5",
+      "immutable": "ghcr.io/fluxcd/kustomize-controller@sha256:a3a955eb2bc432c2eaa94d2d3714e3beae7fdf17586fd23aadf71ab597ac3339"
+    },
+    {
+      "reference": "ghcr.io/fluxcd/notification-controller:v1.9.4",
+      "immutable": "ghcr.io/fluxcd/notification-controller@sha256:840f318265ee26f0d2c48a158bf7896b22aa4e998e320a18646309f0e40b15da"
+    },
+    {
+      "reference": "ghcr.io/fluxcd/source-controller:v1.9.5",
+      "immutable": "ghcr.io/fluxcd/source-controller@sha256:6f20d232d596a758c923d2861f23511718fc303b8a2e36a1434a7c736b9f4268"
+    },
+    {
+      "reference": "ghcr.io/fluxcd/source-watcher:v2.2.4",
+      "immutable": "ghcr.io/fluxcd/source-watcher@sha256:86743f5a4cd4ea76b9722eb86222d56e8253e776daa0565ecb186ec68ad1d835"
+    },
+    {
+      "reference": "registry.k8s.io/sig-storage/csi-attacher:v4.6.1",
+      "immutable": "registry.k8s.io/sig-storage/csi-attacher@sha256:b4d611100ece2f9bc980d1cb19c2285b8868da261e3b1ee8f45448ab5512ab94"
+    },
+    {
+      "reference": "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.1",
+      "immutable": "registry.k8s.io/sig-storage/csi-node-driver-registrar@sha256:f25af73ee708ff9c82595ae99493cdef9295bd96953366cddf36305f82555dac"
+    },
+    {
+      "reference": "registry.k8s.io/sig-storage/csi-provisioner:v5.0.1",
+      "immutable": "registry.k8s.io/sig-storage/csi-provisioner@sha256:405a14e1aa702f7ea133cea459e8395fe40a6125c088c55569e696d48e1bd385"
+    },
+    {
+      "reference": "registry.k8s.io/sig-storage/csi-resizer:v1.11.1",
+      "immutable": "registry.k8s.io/sig-storage/csi-resizer@sha256:a541e6cc2d8b011bb21b1d4ffec6b090e85270cce6276ee302d86153eec0af43"
+    },
+    {
+      "reference": "registry.k8s.io/sig-storage/csi-snapshotter:v6.3.0",
+      "immutable": "registry.k8s.io/sig-storage/csi-snapshotter@sha256:93fbf54dd67f586428ea339743160e1a5110c058afde3c2e824f11fbc6efae53"
+    },
+    {
+      "reference": "registry.k8s.io/sig-storage/livenessprobe:v2.12.0",
+      "immutable": "registry.k8s.io/sig-storage/livenessprobe@sha256:5baeb4a6d7d517434292758928bb33efc6397368cbb48c8a4cf29496abf4e987"
+    },
+    {
+      "reference": "registry.k8s.io/sig-storage/snapshot-controller:v6.3.0",
+      "immutable": "registry.k8s.io/sig-storage/snapshot-controller@sha256:0576eac2184b2bca88f30ada56dfec1e98fa8045e27ecb6aedff23c48534a3ca"
+    }
+  ],
+  "unresolved": [],
+  "liveQualified": false,
+  "fluxInstallManifestSha256": "cc3dcd743af16215838b6937e1fce83745bf24c0dcc6c59737c59df15429caaf"
+}

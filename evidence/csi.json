@@ -1,0 +1,23 @@
+{
+  "component": "csi",
+  "sourceCommit": "a84477e922d62b82387ab55134fafc9c0b5aaf64",
+  "patches": [
+    {
+      "path": "0001-layersentry-idempotent-expand.diff",
+      "sha256": "ad1339342211b63d8c9c9a20994da20c66ae632e03c7ddc1c65d4215bf9c4f58",
+      "purpose": "Return observed capacity without replaying an already-satisfied CloudStack volume expansion and pin container base manifests"
+    }
+  ],
+  "builder": "docker.io/library/golang@sha256:383395b794dffa5b53012a212365d40c8e37109a626ca30d6151c8348d380b5f",
+  "runtime": "docker.io/library/alpine@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d",
+  "recipeSha256": "f36e7f01c59e09606518c7d1b761124ec7db5ab3538a6d8770d809a04a2402b4",
+  "apkLockSha256": "0d1d5060d34469bc48d3134ef747b2841c388252af2ab2b9350ceb01d42083bd",
+  "cleanBuildRuntimeDigests": [
+    "3b8a6bc30ba73d7eca84a27c1f202c147b019f34fc7e1b861acd216d60235db1",
+    "3b8a6bc30ba73d7eca84a27c1f202c147b019f34fc7e1b861acd216d60235db1"
+  ],
+  "tests": "go test -p 2 ./... passed in both builds",
+  "liveQualified": false,
+  "image": "ghcr.io/adaptgurus/layersentry-cloudstack-csi@sha256:448e6909747662a399c9d9048a25a8c37f30072503413fa245c249050a02599a",
+  "pullByDigestVerified": true
+}

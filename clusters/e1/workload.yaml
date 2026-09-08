@@ -1,0 +1,20 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: ${CLUSTER_NAME}-workload
+  namespace: ${CLUSTER_NAMESPACE}
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 15m
+  path: ./workload
+  prune: true
+  wait: true
+  sourceRef:
+    kind: GitRepository
+    name: layersentry-e1-catalog
+    namespace: flux-system
+  kubeConfig:
+    secretRef:
+      name: ${CLUSTER_NAME}-kubeconfig
+      key: value
