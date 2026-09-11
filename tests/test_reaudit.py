@@ -45,10 +45,11 @@ class CatalogReauditTests(unittest.TestCase):
         conflict["policy"] = "ignore-existing-crds"
         self.reject(bad)
 
-    def test_cluster_scoped_conflict_must_be_observed_by_state_detector(self):
+    def test_every_installed_crd_must_participate_in_cluster_scoped_conflict_inventory(self):
         bad = copy.deepcopy(self.data)
-        conflict = next(c for c in bad["entries"][0]["conflicts"] if c["kind"] == "cluster-scoped-api")
-        conflict["resources"].append("foreign.example.com")
+        entry = bad["entries"][0]
+        conflict = next(c for c in entry["conflicts"] if c["kind"] == "cluster-scoped-api")
+        conflict["resources"].remove(entry["installedStateDetector"]["crds"][0])
         self.reject(bad)
 
     def test_upstream_release_identity_must_match_supported_version(self):
