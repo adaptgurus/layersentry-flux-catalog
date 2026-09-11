@@ -1,0 +1,319 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "layersentry-rke2-software-catalog",
+  "authority": {
+    "centralRepository": "adaptgurus/codexagentlogic",
+    "centralCommit": "9e58d78d6bfaaa923d24fb8b4912ae24e43dc0f7",
+    "compatibilityContract": "contracts/plugin-compatibility.json",
+    "serviceBoundary": "contracts/SIMPLE_K8S_MANAGEMENT.md"
+  },
+  "gitOps": {
+    "choices": [
+      "none",
+      "flux",
+      "argocd"
+    ],
+    "maxEnginesPerClusterProfile": 1,
+    "setupOwner": "customer",
+    "layerSentryConfiguresRepositories": false,
+    "layerSentryConfiguresPipelines": false
+  },
+  "policy": {
+    "unknownCompatibility": "BLOCK",
+    "foreignHelmRelease": "BLOCK",
+    "serializePerClusterMutations": true,
+    "revalidateInventoryImmediatelyBeforeMutation": true,
+    "defaultInstallMode": "INSTALL_ONLY",
+    "successDoesNotMeanCustomerConfigured": true
+  },
+  "entries": [
+    {
+      "id": "cert-manager",
+      "name": "cert-manager",
+      "category": "certificates",
+      "qualification": "PARTIAL",
+      "productionSelectable": false,
+      "qualificationNote": "Catalog metadata, admission/lifecycle source and tests are implemented; production selection remains blocked until CI verifies the pinned OCI/chart/image provenance and the exact RKE2 target passes live install, failure/reconcile, duplicate and safe-uninstall evidence.",
+      "supportedVersions": [
+        {
+          "version": "v1.21.1",
+          "appVersion": "v1.21.1",
+          "kubernetes": {
+            "minMinor": "1.33",
+            "maxMinor": "1.36",
+            "upstreamTestedMinMinor": "1.33",
+            "upstreamTestedMaxMinor": "1.36"
+          },
+          "rke2": {
+            "allowedKubernetesMinors": [
+              "1.33",
+              "1.34",
+              "1.35",
+              "1.36"
+            ],
+            "firstLayerSentryQualificationTarget": "v1.36.4+rke2r1"
+          },
+          "chart": {
+            "ociRepository": "oci://quay.io/jetstack/charts/cert-manager",
+            "version": "v1.21.1",
+            "manifestDigest": "sha256:15c0b46d9006ce8eb9ff14d1bf54d1bbfcc587bb9e24cd9fe186fb8fec56af1f",
+            "immutableRef": "oci://quay.io/jetstack/charts/cert-manager@sha256:15c0b46d9006ce8eb9ff14d1bf54d1bbfcc587bb9e24cd9fe186fb8fec56af1f",
+            "provenance": {
+              "method": "helm-pgp",
+              "verificationRequired": true,
+              "keyFingerprint": "1020CF3C033D4F35BAE1C19E1226061C665DF13E",
+              "keyringURL": "https://cert-manager.io/public-keys/cert-manager-keyring-2021-09-20-1020CF3C033D4F35BAE1C19E1226061C665DF13E.gpg"
+            },
+            "verificationStatus": "PENDING_CI_PROVENANCE_AND_REGISTRY_DIGEST"
+          },
+          "upstreamRelease": {
+            "repository": "cert-manager/cert-manager",
+            "tag": "v1.21.1",
+            "commit": "24e33194fb39488eff2bbf10c6dc640f407cad44",
+            "published": "2026-07-29T15:36:11Z"
+          },
+          "profiles": [
+            "simple"
+          ],
+          "cni": {
+            "allowed": [
+              "cilium",
+              "calico",
+              "canal"
+            ]
+          },
+          "csi": {
+            "required": [],
+            "blocked": [],
+            "note": "cert-manager does not require a CSI driver; CSI inventory is still part of server-side admission context."
+          }
+        }
+      ],
+      "dependencies": [],
+      "conflicts": [
+        {
+          "kind": "helm-release",
+          "namespace": "cert-manager",
+          "name": "cert-manager",
+          "policy": "reject-if-foreign-or-owned-by-another-operation"
+        },
+        {
+          "kind": "cluster-scoped-api",
+          "resources": [
+            "certificates.cert-manager.io",
+            "certificaterequests.cert-manager.io",
+            "clusterissuers.cert-manager.io",
+            "issuers.cert-manager.io",
+            "orders.acme.cert-manager.io",
+            "challenges.acme.cert-manager.io"
+          ],
+          "policy": "reject-unowned-incompatible-crd-or-webhook-ownership"
+        }
+      ],
+      "prerequisites": [
+        {
+          "kind": "helm",
+          "constraint": ">=3.8.0",
+          "reason": "OCI chart support is GA from Helm 3.8."
+        },
+        {
+          "kind": "cluster-version",
+          "constraint": "supportedVersions[].kubernetes",
+          "reason": "Use upstream supported/tested Kubernetes range."
+        },
+        {
+          "kind": "ownership",
+          "constraint": "no-foreign-cert-manager-release",
+          "reason": "LayerSentry does not adopt existing releases."
+        },
+        {
+          "kind": "capacity",
+          "constraint": "scheduler-can-place-cert-manager-workloads",
+          "reason": "Installation must be observed, not inferred from Helm acceptance."
+        }
+      ],
+      "install": {
+        "mode": "INSTALL_ONLY",
+        "owner": "DIRECT_HELM",
+        "releaseName": "cert-manager",
+        "namespace": "cert-manager",
+        "createNamespace": true,
+        "timeout": "10m",
+        "wait": true,
+        "verifyProvenance": true,
+        "values": {
+          "crds.enabled": true,
+          "crds.keep": true,
+          "image.digest": "sha256:416a2d76870d996460e62bd7f521bf14fa017be9e3e904aab92163a331fcb61a",
+          "webhook.image.digest": "sha256:d8b3961b51c8c7320633f8208dc46bf88aa13804d0f7cbe48a096b2c523cee42",
+          "cainjector.image.digest": "sha256:ccf6b919ec0500745a47a910118f834f9636d0aac1ff221245cd2557ed8c7c98",
+          "acmesolver.image.digest": "sha256:dbc7cc1354f603918e7c5af7f55a0a620537394452c93a565bde75c6f48e8837",
+          "startupapicheck.image.digest": "sha256:d8ab6416e6e7303a86fa0a8daa82c94a8001f21c9d78eb2e7db20534e5d07ae8"
+        },
+        "forbiddenCustomerConfiguration": [
+          "Issuer",
+          "ClusterIssuer",
+          "certificate issuer credentials",
+          "application Certificate resources"
+        ]
+      },
+      "installedStateDetector": {
+        "helmRelease": {
+          "name": "cert-manager",
+          "namespace": "cert-manager",
+          "requiredStatus": "deployed"
+        },
+        "deployments": [
+          {
+            "namespace": "cert-manager",
+            "name": "cert-manager",
+            "condition": "Available=True"
+          },
+          {
+            "namespace": "cert-manager",
+            "name": "cert-manager-cainjector",
+            "condition": "Available=True"
+          },
+          {
+            "namespace": "cert-manager",
+            "name": "cert-manager-webhook",
+            "condition": "Available=True"
+          }
+        ],
+        "crds": [
+          "certificates.cert-manager.io",
+          "certificaterequests.cert-manager.io",
+          "clusterissuers.cert-manager.io",
+          "issuers.cert-manager.io",
+          "orders.acme.cert-manager.io",
+          "challenges.acme.cert-manager.io"
+        ],
+        "crdCondition": "Established=True",
+        "readyState": "NEEDS_CUSTOMER_SETUP",
+        "readyReason": "LayerSentry installs cert-manager but does not create a customer Issuer or ClusterIssuer.",
+        "customerResourceQueries": [
+          "/apis/cert-manager.io/v1/certificates",
+          "/apis/cert-manager.io/v1/certificaterequests",
+          "/apis/cert-manager.io/v1/issuers",
+          "/apis/cert-manager.io/v1/clusterissuers",
+          "/apis/acme.cert-manager.io/v1/orders",
+          "/apis/acme.cert-manager.io/v1/challenges"
+        ]
+      },
+      "upgradeRules": {
+        "automatic": false,
+        "requireExplicitTargetVersion": true,
+        "requireLayerSentryOwnedRelease": true,
+        "requireFreshCompatibilityCheck": true,
+        "requireUpstreamUpgradeNotesReview": true,
+        "strategy": "helm-upgrade-reset-then-reuse-values",
+        "unknownOutcome": "UNKNOWN_RECONCILE_BEFORE_RETRY"
+      },
+      "uninstallPolicy": {
+        "supported": true,
+        "defaultAction": "HELM_UNINSTALL_PRESERVE_CRDS_AND_CUSTOMER_DATA",
+        "deleteNamespace": false,
+        "deleteCRDs": false,
+        "requireLayerSentryOwnedRelease": true,
+        "requireCustomerResourceInventory": true,
+        "destructiveFullRemoval": "OUT_OF_BAND_EXPLICITLY_APPROVED_ONLY",
+        "note": "cert-manager keeps CRDs on Helm uninstall to avoid deleting Issuers, Certificates and related customer resources."
+      },
+      "airGapArtifacts": {
+        "chart": {
+          "immutableRef": "oci://quay.io/jetstack/charts/cert-manager@sha256:15c0b46d9006ce8eb9ff14d1bf54d1bbfcc587bb9e24cd9fe186fb8fec56af1f",
+          "verifyBeforeMirror": true,
+          "verificationStatus": "PENDING_CI_PROVENANCE_AND_REGISTRY_DIGEST"
+        },
+        "releaseAssets": [
+          {
+            "name": "cert-manager.crds.yaml",
+            "url": "https://github.com/cert-manager/cert-manager/releases/download/v1.21.1/cert-manager.crds.yaml",
+            "sha256": "a1383be02862dd2802e6810f19dd1f4784550f336ff4eb27788e842302f76977"
+          },
+          {
+            "name": "cert-manager.yaml",
+            "url": "https://github.com/cert-manager/cert-manager/releases/download/v1.21.1/cert-manager.yaml",
+            "sha256": "5f6a499b8c1857d57f560f536e0dcc830914b45c420899fe7ad0692c8624e408"
+          }
+        ],
+        "images": [
+          {
+            "repository": "quay.io/jetstack/cert-manager-controller",
+            "tag": "v1.21.1",
+            "digest": "sha256:416a2d76870d996460e62bd7f521bf14fa017be9e3e904aab92163a331fcb61a",
+            "immutableRef": "quay.io/jetstack/cert-manager-controller@sha256:416a2d76870d996460e62bd7f521bf14fa017be9e3e904aab92163a331fcb61a",
+            "verificationStatus": "PENDING_CI_COSIGN"
+          },
+          {
+            "repository": "quay.io/jetstack/cert-manager-webhook",
+            "tag": "v1.21.1",
+            "digest": "sha256:d8b3961b51c8c7320633f8208dc46bf88aa13804d0f7cbe48a096b2c523cee42",
+            "immutableRef": "quay.io/jetstack/cert-manager-webhook@sha256:d8b3961b51c8c7320633f8208dc46bf88aa13804d0f7cbe48a096b2c523cee42",
+            "verificationStatus": "PENDING_CI_COSIGN"
+          },
+          {
+            "repository": "quay.io/jetstack/cert-manager-cainjector",
+            "tag": "v1.21.1",
+            "digest": "sha256:ccf6b919ec0500745a47a910118f834f9636d0aac1ff221245cd2557ed8c7c98",
+            "immutableRef": "quay.io/jetstack/cert-manager-cainjector@sha256:ccf6b919ec0500745a47a910118f834f9636d0aac1ff221245cd2557ed8c7c98",
+            "verificationStatus": "PENDING_CI_COSIGN"
+          },
+          {
+            "repository": "quay.io/jetstack/cert-manager-acmesolver",
+            "tag": "v1.21.1",
+            "digest": "sha256:dbc7cc1354f603918e7c5af7f55a0a620537394452c93a565bde75c6f48e8837",
+            "immutableRef": "quay.io/jetstack/cert-manager-acmesolver@sha256:dbc7cc1354f603918e7c5af7f55a0a620537394452c93a565bde75c6f48e8837",
+            "verificationStatus": "PENDING_CI_COSIGN"
+          },
+          {
+            "repository": "quay.io/jetstack/cert-manager-startupapicheck",
+            "tag": "v1.21.1",
+            "digest": "sha256:d8ab6416e6e7303a86fa0a8daa82c94a8001f21c9d78eb2e7db20534e5d07ae8",
+            "immutableRef": "quay.io/jetstack/cert-manager-startupapicheck@sha256:d8ab6416e6e7303a86fa0a8daa82c94a8001f21c9d78eb2e7db20534e5d07ae8",
+            "verificationStatus": "PENDING_CI_COSIGN"
+          }
+        ],
+        "imagePromotionRule": "Resolve each tag to an immutable digest, verify the upstream cosign signature, then mirror by digest before offline promotion."
+      },
+      "securityProvenance": {
+        "license": "Apache-2.0",
+        "chartSignatureRequired": true,
+        "containerSignatureRequiredBeforeAirGapPromotion": true,
+        "containerSigningKey": "https://cert-manager.io/public-keys/cert-manager-pubkey-2021-09-20.pem",
+        "releaseCommit": "24e33194fb39488eff2bbf10c6dc640f407cad44",
+        "clusterScopedEffects": [
+          "CRDs",
+          "ClusterRoles",
+          "webhook configurations"
+        ],
+        "notes": [
+          "Review cert-manager 1.21 release/upgrade notes before upgrade; 1.21 contains breaking Helm RBAC/metrics changes relative to 1.20."
+        ]
+      },
+      "customerConfiguration": {
+        "required": true,
+        "postInstallState": "NEEDS_CUSTOMER_SETUP",
+        "customerOwns": [
+          "Issuer/ClusterIssuer selection and creation",
+          "CA/ACME/Vault/other issuer credentials",
+          "application Certificate/Ingress/Gateway usage"
+        ],
+        "layerSentryMustNotCreate": [
+          "customer issuer credentials",
+          "customer certificate policy",
+          "application certificates"
+        ]
+      },
+      "officialSources": [
+        "https://cert-manager.io/docs/installation/helm/",
+        "https://cert-manager.io/docs/releases/",
+        "https://cert-manager.io/docs/installation/upgrade/",
+        "https://cert-manager.io/docs/installation/code-signing/",
+        "https://github.com/cert-manager/cert-manager/releases/tag/v1.21.1",
+        "https://docs.helm.sh/docs/v3/topics/provenance/",
+        "https://docs.helm.sh/docs/v3/topics/registries/"
+      ]
+    }
+  ]
+}
