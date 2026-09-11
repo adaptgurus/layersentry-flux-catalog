@@ -113,8 +113,8 @@
       "prerequisites": [
         {
           "kind": "helm",
-          "constraint": ">=3.8.0",
-          "reason": "OCI chart support is GA from Helm 3.8."
+          "constraint": ">=3.14.0",
+          "reason": "OCI chart support is GA from Helm 3.8; LayerSentry retry uses --reset-then-reuse-values, introduced for Helm 3.14.0."
         },
         {
           "kind": "cluster-version",

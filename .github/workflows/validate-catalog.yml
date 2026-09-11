@@ -21,7 +21,7 @@ jobs:
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
         with:
           cosign-release: v3.1.2
-      - name: Verify cert-manager OCI chart, PGP provenance and image signatures
+      - name: Verify cert-manager OCI chart, PGP provenance and air-gap closure
         shell: bash
         run: |
           set -euo pipefail
@@ -32,10 +32,10 @@ jobs:
 
           keyring="$tmp/cert-manager-keyring.gpg"
           image_key="$tmp/cert-manager-pubkey.pem"
-          curl --proto '=https' --tlsv1.2 -fsSL \
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
             https://cert-manager.io/public-keys/cert-manager-keyring-2021-09-20-1020CF3C033D4F35BAE1C19E1226061C665DF13E.gpg \
             -o "$keyring"
-          curl --proto '=https' --tlsv1.2 -fsSL \
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
             https://cert-manager.io/public-keys/cert-manager-pubkey-2021-09-20.pem \
             -o "$image_key"
 
@@ -52,6 +52,24 @@ jobs:
           helm show chart "$chart_package" > "$tmp/chart-metadata.yaml"
           grep -Fx 'name: cert-manager' "$tmp/chart-metadata.yaml" >/dev/null
           grep -Fx 'version: v1.21.1' "$tmp/chart-metadata.yaml" >/dev/null
+
+          python3 - <<'PY' > "$tmp/release-assets.tsv"
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          assets=data['entries'][0]['airGapArtifacts'].get('releaseAssets', [])
+          if not assets:
+              raise SystemExit('releaseAssets must not be empty')
+          for asset in assets:
+              print(f"{asset['sha256']}\t{asset['url']}\t{asset['name']}")
+          PY
+          while IFS=$'\t' read -r expected url name; do
+            case "$name" in
+              ''|*/*|*'..'*) echo "unsafe release asset name: $name" >&2; exit 1 ;;
+            esac
+            curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL "$url" -o "$tmp/$name"
+            actual="$(sha256sum "$tmp/$name" | awk '{print $1}')"
+            test "$actual" = "$expected"
+          done < "$tmp/release-assets.tsv"
 
           python3 - <<'PY' > "$tmp/images.txt"
           import json
@@ -77,8 +95,8 @@ jobs:
           mapfile -t digest_values < "$tmp/digest-values.txt"
 
           # Production mutates only from this already PGP-verified local package.
-          # Hosted CI proves the local package identity and rendering; the real
-          # Helm install is intentionally reserved for the owned RKE2 live gate.
+          # Hosted CI proves local package identity, release-asset checksums and
+          # immutable rendering; real install remains the owned RKE2 live gate.
           helm template cert-manager "$chart_package" \
             --namespace cert-manager \
             --set=crds.enabled=true \
