@@ -19,6 +19,11 @@ done
   sha256sum -c SHA256SUMS >/dev/null
 ) || fail "SHA256SUMS verification failed"
 
+[[ ! -e "$BUNDLE/provenance/openeverest-rendered.yaml" ]] \
+  || fail "generated-secret Helm render must not be persisted in release evidence"
+[[ -s "$BUNDLE/provenance/rendered-resource-kinds.txt" ]] \
+  || fail "deterministic rendered resource summary is missing"
+
 python3 - \
   "$BUNDLE/release-manifest.json" \
   "$BUNDLE/provenance/images.required.txt" \
@@ -55,6 +60,7 @@ assert manifest['package']['canonicalArchive'] is True
 assert manifest['reproducibility']['sourceDateEpochPinned'] is True
 assert manifest['reproducibility']['deterministicLocalDependencyArchives'] is True
 assert manifest['reproducibility']['deterministicParentPackage'] is True
+assert manifest['reproducibility']['generatedSecretRenderExcluded'] is True
 assert manifest['helmDependencies']['artifactLockFile'] == 'provenance/helm-dependency-artifact-lock.json'
 assert manifest['helmDependencies']['localArchivesCanonicalized'] is True
 assert manifest['helmDependencies']['externalArchivesPreserved'] is True
@@ -117,7 +123,7 @@ package="$BUNDLE/packages/openeverest-1.16.2.tgz"
 [[ -s "$package" ]] || fail "packaged chart missing"
 
 # Both vendored source and the canonical packaged chart must render without any
-# configured Helm repositories.
+# configured Helm repositories. The temporary render is never persisted.
 empty_helm="$(mktemp -d)"
 rendered_source="$(mktemp)"
 rendered_package="$(mktemp)"
@@ -136,6 +142,7 @@ HELM_DATA_HOME="$empty_helm/data" \
 [[ -s "$BUNDLE/provenance/images.required.txt" ]] || fail "required image inventory is empty"
 [[ -s "$BUNDLE/provenance/images.lock.json" ]] || fail "immutable image digest lock is empty"
 [[ -s "$BUNDLE/provenance/registries.required.txt" ]] || fail "required registry inventory is empty"
+[[ -s "$BUNDLE/provenance/rendered-resource-kinds.txt" ]] || fail "rendered resource-kind summary is empty"
 [[ -s "$BUNDLE/provenance/docker-buildx-version.txt" ]] || fail "Docker Buildx provenance is missing"
 [[ -s "$BUNDLE/provenance/helm-dependency-artifact-lock.json" ]] || fail "Helm dependency artifact lock is missing"
 
