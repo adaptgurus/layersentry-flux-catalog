@@ -1,0 +1,28 @@
+name: Validate LayerSentry data services
+on:
+  pull_request:
+    paths:
+      - 'apps/data-services/**'
+      - 'clusters/e1/**'
+      - 'scripts/verify-data-services.sh'
+      - '.github/workflows/validate-data-services.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/data-services/**'
+      - 'clusters/e1/**'
+      - 'scripts/verify-data-services.sh'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify exact OpenEverest and Flux contract
+        shell: bash
+        run: bash scripts/verify-data-services.sh
