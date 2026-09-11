@@ -102,15 +102,31 @@ jobs:
           PY
           mapfile -t digest_values < "$tmp/digest-values.txt"
 
-          # Production mutates only from this already PGP-verified local package.
-          # Hosted CI proves local package identity, release-asset checksums and
-          # immutable rendering; real install remains the owned RKE2 live gate.
+          python3 - <<'PY' > "$tmp/mirror-values.txt"
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          for image in data['entries'][0]['airGapArtifacts']['images']:
+              name=image['repository'].rsplit('/', 1)[-1]
+              mirror=f'registry.airgap.invalid/layersentry/{name}'
+              print(f"--set={image['helmRepositoryValue']}={mirror}")
+          PY
+          mapfile -t mirror_values < "$tmp/mirror-values.txt"
+
+          # Production mutates from an already verified local package. The
+          # air-gap contract additionally proves every image repository can be
+          # redirected to a server-owned mirror while retaining pinned digests.
           helm template cert-manager "$chart_package" \
             --namespace cert-manager \
             --set=crds.enabled=true \
             --set=crds.keep=true \
-            "${digest_values[@]}" > "$tmp/rendered.yaml"
+            "${digest_values[@]}" \
+            "${mirror_values[@]}" > "$tmp/rendered.yaml"
           while IFS= read -r image; do
             digest="${image##*@}"
             grep -F -- "$digest" "$tmp/rendered.yaml" >/dev/null
           done < "$tmp/images.txt"
+          if grep -E '^[[:space:]]*image:.*quay\.io/jetstack/' "$tmp/rendered.yaml"; then
+            echo 'air-gap render still references upstream quay.io images' >&2
+            exit 1
+          fi
+          grep -F 'registry.airgap.invalid/layersentry/' "$tmp/rendered.yaml" >/dev/null

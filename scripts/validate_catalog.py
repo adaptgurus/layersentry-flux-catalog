@@ -18,6 +18,7 @@ REQUIRED_ENTRY_FIELDS = {
 BLOCKED_IDS = {"opennebula-l4", "cloud-provider-opennebula", "promtail"}
 QUALIFICATION_STATES = {"DESIGN_DEFINED", "SOURCE_COMPLETE", "CI_VERIFIED", "LIVE_VERIFIED", "PRODUCTION_CERTIFIED", "PARTIAL", "PENDING", "BLOCKED", "UNKNOWN", "NOT_TESTED"}
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+HEX_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FINGERPRINT_RE = re.compile(r"^[0-9A-F]{40}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 DNS_NAME_RE = re.compile(r"^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$")
@@ -53,8 +54,7 @@ def validate(data: dict) -> None:
     _require(authority.get("serviceBoundary") == "contracts/SIMPLE_K8S_MANAGEMENT.md", "unexpected service boundary")
 
     gitops = data.get("gitOps", {})
-    choices = gitops.get("choices")
-    _require(choices == ["none", "flux", "argocd"], "GitOps choices must be exactly none/flux/argocd")
+    _require(gitops.get("choices") == ["none", "flux", "argocd"], "GitOps choices must be exactly none/flux/argocd")
     _require(gitops.get("maxEnginesPerClusterProfile") == 1, "at most one GitOps engine is allowed")
     _require(gitops.get("setupOwner") == "customer", "customer must own GitOps setup")
     _require(gitops.get("layerSentryConfiguresRepositories") is False, "LayerSentry must not configure customer repositories")
@@ -146,6 +146,7 @@ def validate(data: dict) -> None:
 
         conflicts = entry["conflicts"]
         _require(isinstance(conflicts, list), f"{entry_id}: conflicts must be a list")
+        cluster_scoped_resources = set()
         for conflict in conflicts:
             kind = conflict.get("kind")
             if kind == "helm-release":
@@ -156,9 +157,10 @@ def validate(data: dict) -> None:
                 _require(isinstance(resources, list) and resources and len(resources) == len(set(resources)), f"{entry_id}: cluster-scoped conflict resources must be unique and non-empty")
                 _require(all(isinstance(resource, str) and DNS_NAME_RE.fullmatch(resource) is not None for resource in resources), f"{entry_id}: invalid cluster-scoped resource name")
                 _require(conflict.get("policy") == "reject-unowned-incompatible-crd-or-webhook-ownership", f"{entry_id}: invalid cluster-scoped conflict policy")
-                _require(set(resources).issubset(set(crds)), f"{entry_id}: declared CRD conflicts must be part of installed-state detection")
+                cluster_scoped_resources.update(resources)
             else:
                 raise CatalogError(f"{entry_id}: unsupported conflict kind {kind!r}")
+        _require(set(crds).issubset(cluster_scoped_resources), f"{entry_id}: all installed CRDs must participate in cluster-scoped ownership checks")
 
         customer = entry["customerConfiguration"]
         if customer.get("required"):
@@ -171,14 +173,30 @@ def validate(data: dict) -> None:
             _require(all(isinstance(q, str) and q.startswith("/apis/") and ".." not in q and "\n" not in q and "\r" not in q for q in queries), f"{entry_id}: invalid customer resource query")
 
         airgap = entry["airGapArtifacts"]
-        _require(airgap.get("chart", {}).get("immutableRef") == versions[0]["chart"]["immutableRef"], f"{entry_id}: air-gap chart must match the qualified immutable chart")
+        airgap_chart = airgap.get("chart", {})
+        _require(airgap_chart.get("immutableRef") == versions[0]["chart"]["immutableRef"], f"{entry_id}: air-gap chart must match the qualified immutable chart")
+        _require(DIGEST_RE.fullmatch(airgap_chart.get("packageDigest", "")) is not None, f"{entry_id}: air-gap chart package digest is required")
+        _require(airgap_chart.get("verifyBeforeMirror") is True, f"{entry_id}: chart must be verified before air-gap promotion")
+        assets = airgap.get("releaseAssets", [])
+        _require(isinstance(assets, list) and assets, f"{entry_id}: release asset closure is required")
+        for asset in assets:
+            _require(isinstance(asset.get("name"), str) and asset["name"] and "/" not in asset["name"] and ".." not in asset["name"], f"{entry_id}: unsafe release asset name")
+            _require(_https_url(asset.get("url")), f"{entry_id}: release asset URL must be HTTPS")
+            _require(HEX_SHA256_RE.fullmatch(asset.get("sha256", "")) is not None, f"{entry_id}: release asset checksum must be SHA-256")
         images = airgap.get("images", [])
         _require(len(images) > 0, f"{entry_id}: air-gap image closure is required")
+        repository_keys = set()
         for image in images:
             digest = image.get("digest", "")
             _require(DIGEST_RE.fullmatch(digest) is not None, f"{entry_id}: air-gap image must be digest pinned")
             _require(image.get("immutableRef") == image.get("repository", "") + "@" + digest, f"{entry_id}: invalid immutable image reference")
             _require(isinstance(image.get("verificationStatus"), str) and image.get("verificationStatus"), f"{entry_id}: image verification status is required")
+            repo_key = image.get("helmRepositoryValue", "")
+            _require(VALUE_KEY_RE.fullmatch(repo_key) is not None and repo_key.endswith(".repository"), f"{entry_id}: image mirror Helm repository key is required")
+            _require(repo_key not in repository_keys, f"{entry_id}: duplicate image repository Helm key")
+            repository_keys.add(repo_key)
+            digest_key = repo_key[:-len(".repository")] + ".digest"
+            _require(values.get(digest_key) == digest, f"{entry_id}: mirror repository key is not bound to its pinned digest value")
         security = entry["securityProvenance"]
         _require(security.get("chartSignatureRequired") is True, f"{entry_id}: signed chart required")
         _require(security.get("containerSignatureRequiredBeforeAirGapPromotion") is True, f"{entry_id}: signed images are required before air-gap promotion")
@@ -189,7 +207,6 @@ def validate(data: dict) -> None:
             _require(entry.get("qualification") in {"LIVE_VERIFIED", "PRODUCTION_CERTIFIED"}, f"{entry_id}: production selection requires live evidence")
             _require(all(version.get("chart", {}).get("verificationStatus", "").startswith(("CI_VERIFIED", "LIVE_VERIFIED")) for version in versions), f"{entry_id}: production selection requires verified chart provenance")
 
-    # A catalog entry may not quietly configure customer-owned GitOps/application content.
     raw = json.dumps(data).lower()
     for forbidden in ("customerpassword", "customer_token", "privatekeyvalue"):
         _require(forbidden not in raw, f"catalog contains forbidden secret field: {forbidden}")
