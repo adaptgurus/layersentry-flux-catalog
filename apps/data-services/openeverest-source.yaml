@@ -1,0 +1,17 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: openeverest-helm
+  namespace: everest-system
+  labels:
+    app.kubernetes.io/part-of: layersentry-dbaas
+spec:
+  interval: 30m
+  timeout: 2m
+  url: ${LAYERSENTRY_OPENEVEREST_HELM_GIT_URL:=https://github.com/openeverest/helm-charts.git}
+  ref:
+    commit: 568186ace62846557e29841edad76c08f8b913a4
+  verify:
+    mode: HEAD
+    secretRef:
+      name: openeverest-source-verification
