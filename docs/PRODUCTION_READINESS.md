@@ -22,14 +22,21 @@ A releasable source revision must satisfy all of the following:
    Secrets in `everest-system`; credentials are never stored in this catalog.
 6. OpenEverest `versionMetadataURL` is mandatory and must reference an internal
    qualified metadata mirror.
-7. The release bundle inventories chart-rendered images and required registries.
-   RKE2/containerd registry mirrors must make those names resolvable without
-   Internet access. The OLM CatalogSource and version metadata may introduce
-   additional database/operator/backup images; those dynamic artifacts must be
-   mirrored and locked before a live release is accepted.
-8. The LayerSentry DBaaS API image remains site-supplied by immutable digest.
-9. TLS, RBAC, CRD `CreateReplace`, rollback remediation, cleanup-on-failure,
-   drift detection, single-writer API state and `prune: false` are retained.
+7. The connected release build resolves every statically rendered container
+   reference to its immutable registry manifest digest and stores the result in
+   `provenance/images.lock.json`. A mutable tag alone is not acceptable release
+   evidence.
+8. Before production promotion, the selected private registry copies must be
+   checked against that lock with `scripts/verify-image-mirror.sh`. The mapping
+   file is site-specific so Harbor/Nexus/Artifactory/other registry layout is not
+   hard-coded into LayerSentry.
+9. RKE2/containerd registry mirrors must make all required image names resolvable
+   without Internet access. The OLM CatalogSource and version metadata may
+   introduce additional database/operator/backup images; those dynamic artifacts
+   must also be mirrored and locked before live acceptance.
+10. The LayerSentry DBaaS API image remains site-supplied by immutable digest.
+11. TLS, RBAC, CRD `CreateReplace`, rollback remediation, cleanup-on-failure,
+    drift detection, single-writer API state and `prune: false` are retained.
 
 ## Build/import workflow
 
@@ -37,11 +44,13 @@ Connected qualification environment:
 
 ```text
 scripts/build-offline-release.sh dist/offline-release
+scripts/lock-image-digests.sh dist/offline-release
 scripts/verify-offline-release.sh dist/offline-release
 ```
 
 The result contains the vendored chart source, packaged chart, image/registry
-inventory, upstream provenance, release manifest and SHA-256 checksums.
+inventory, immutable image digest lock, upstream provenance, release manifest
+and SHA-256 checksums.
 
 Inside the controlled release environment, create the Git source that will be
 served by the selected internal Git service:
@@ -56,10 +65,22 @@ scripts/create-offline-git-source.sh dist/offline-release /secure/path/openevere
 Push that signed repository to the approved internal Git service and place the
 resulting commit SHA in `LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT`.
 
-The final repository/storage product (for example an internal Git server and
-registry implementation) is intentionally not hard-coded here. The code defines
-the integrity and runtime interfaces so the storage product can be selected
-without changing LayerSentry's customer workflow.
+After images are imported into the selected private registry, create a local
+mapping file with one `source` and one `mirror` reference for every entry in
+`provenance/images.lock.json`, then run:
+
+```text
+scripts/verify-image-mirror.sh dist/offline-release /secure/path/mirror-map.json
+```
+
+The verifier queries the private mirror and requires its manifest digest to be
+identical to the qualified source digest. The actual registry product and path
+layout remain a site decision.
+
+The final repository/storage products and physical transfer method are
+intentionally not hard-coded here. The code defines the integrity and runtime
+interfaces so those products can be selected without changing LayerSentry's
+customer workflow.
 
 ## Required site/runtime prerequisites
 
@@ -70,6 +91,8 @@ Before enabling the DBaaS Flux Kustomization for a production cluster:
 - real LayerSentry CSI StorageClass is qualified;
 - signed private Git mirror is reachable using the referenced auth/CA Secret;
 - the Flux verification Secret contains the approved release public key;
+- every statically rendered image has a qualified digest lock and the private
+  registry copy has been verified against it;
 - RKE2/containerd registry mirrors cover every registry/image in the release
   inventory plus every image advertised by the mirrored OpenEverest metadata and
   OLM catalog; every source registry has a mirror entry and RKE2 uses
@@ -84,7 +107,8 @@ Before enabling the DBaaS Flux Kustomization for a production cluster:
 
 - **L1 Source complete:** implementation and static contract complete.
 - **L2 CI qualified:** exact source head passes data-services validation, offline
-  contract validation, offline bundle build and offline bundle verification.
+  contract validation, offline bundle build, image digest locking and offline
+  bundle verification.
 - **L3 Deployment/browser:** customer/UI acceptance is a separate FireEdge gate.
 - **L4 Functional runtime:** real database create/read/write/scale/backup/restore/
   PITR/deletion-protection paths pass in the authorized cluster.
@@ -96,9 +120,10 @@ from L1/L2 alone.
 
 ## OpenEverest air-gap support boundary
 
-OpenEverest 1.16.2 is the qualified upstream baseline in LayerSentry. Its current
-support documentation states that air-gapped environments are not yet generally
-supported, although recent chart work added air-gapped upgrade support. For this
-reason LayerSentry's offline integration is an explicit product qualification
-boundary: source/CI can prove a self-contained package and fail-closed runtime
-contract, but production certification requires real offline cluster validation.
+OpenEverest 1.16.2 remains the qualified upstream baseline in LayerSentry. Its
+versioned support documentation states that air-gapped environments are not yet
+generally supported, while current product material also advertises air-gapped
+self-hosting. LayerSentry therefore treats offline operation as an explicit
+integration qualification boundary: source/CI can prove a self-contained
+package, immutable static image identities and fail-closed runtime contract, but
+production certification requires real offline cluster validation.
