@@ -19,21 +19,51 @@ done
   sha256sum -c SHA256SUMS >/dev/null
 ) || fail "SHA256SUMS verification failed"
 
-python3 - "$BUNDLE/release-manifest.json" <<'PY'
+python3 - "$BUNDLE/release-manifest.json" "$BUNDLE/provenance/images.required.txt" "$BUNDLE/provenance/images.lock.json" <<'PY'
 import json
+import re
 import sys
 from pathlib import Path
-m = json.loads(Path(sys.argv[1]).read_text())
-assert m['schemaVersion'] == 1
-assert m['component'] == 'layersentry-dbaas-openeverest'
-assert m['upstream']['commit'] == '568186ace62846557e29841edad76c08f8b913a4'
-assert m['upstream']['chartVersion'] == '1.16.2'
-assert m['upstream']['appVersion'] == '1.16.2'
-assert m['offlineSource']['vendoredDependencies'] is True
-assert m['runtimeRequirements']['signedPrivateGitMirror'] is True
-assert m['runtimeRequirements']['containerRuntimeRegistryMirror'] is True
-assert m['runtimeRequirements']['disableDefaultRegistryEndpoint'] is True
-assert m['runtimeRequirements']['internalVersionMetadataService'] is True
+
+manifest = json.loads(Path(sys.argv[1]).read_text())
+required = [x for x in Path(sys.argv[2]).read_text().splitlines() if x]
+lock = json.loads(Path(sys.argv[3]).read_text())
+
+assert manifest['schemaVersion'] == 1
+assert manifest['component'] == 'layersentry-dbaas-openeverest'
+assert manifest['upstream']['commit'] == '568186ace62846557e29841edad76c08f8b913a4'
+assert manifest['upstream']['chartVersion'] == '1.16.2'
+assert manifest['upstream']['appVersion'] == '1.16.2'
+assert manifest['offlineSource']['vendoredDependencies'] is True
+assert manifest['runtimeRequirements']['signedPrivateGitMirror'] is True
+assert manifest['runtimeRequirements']['containerRuntimeRegistryMirror'] is True
+assert manifest['runtimeRequirements']['disableDefaultRegistryEndpoint'] is True
+assert manifest['runtimeRequirements']['internalVersionMetadataService'] is True
+assert manifest['runtimeRequirements']['staticImageDigestsLocked'] is True
+assert manifest['containerImages']['lockFile'] == 'provenance/images.lock.json'
+assert manifest['containerImages']['immutable'] is True
+
+if lock.get('schemaVersion') != 1:
+    raise SystemExit('image lock schemaVersion must be 1')
+images = lock.get('images', [])
+if manifest['containerImages']['count'] != len(images):
+    raise SystemExit('image count in release manifest does not match image lock')
+
+seen = set()
+for item in images:
+    source = item.get('source', '')
+    digest = item.get('digest', '')
+    immutable = item.get('immutableRef', '')
+    if not source or source in seen:
+        raise SystemExit(f'invalid or duplicate image source: {source!r}')
+    seen.add(source)
+    if not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
+        raise SystemExit(f'invalid image digest for {source}: {digest}')
+    if not immutable.endswith('@' + digest):
+        raise SystemExit(f'immutable image reference does not match digest: {source}')
+
+if set(required) != seen:
+    raise SystemExit(f'image lock does not exactly cover inventory: missing={sorted(set(required)-seen)} extra={sorted(seen-set(required))}')
 PY
 
 chart="$BUNDLE/source/charts/everest"
@@ -53,7 +83,9 @@ HELM_DATA_HOME="$empty_helm/data" \
 [[ -s "$rendered" ]] || fail "vendored chart did not render offline"
 
 [[ -s "$BUNDLE/provenance/images.required.txt" ]] || fail "required image inventory is empty"
+[[ -s "$BUNDLE/provenance/images.lock.json" ]] || fail "immutable image digest lock is empty"
 [[ -s "$BUNDLE/provenance/registries.required.txt" ]] || fail "required registry inventory is empty"
+[[ -s "$BUNDLE/provenance/docker-buildx-version.txt" ]] || fail "Docker Buildx provenance is missing"
 
 package="$BUNDLE/packages/openeverest-1.16.2.tgz"
 [[ -s "$package" ]] || fail "packaged chart missing"

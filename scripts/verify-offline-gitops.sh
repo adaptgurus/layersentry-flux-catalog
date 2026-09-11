@@ -21,11 +21,14 @@ required_files=(
   clusters/e1/data-services.yaml
   release/offline-release-spec.json
   scripts/build-offline-release.sh
+  scripts/lock-image-digests.sh
+  scripts/verify-image-mirror.sh
   scripts/verify-offline-release.sh
   scripts/create-offline-git-source.sh
   docs/OFFLINE_GITOPS_WORKFLOW.md
   docs/PRODUCTION_READINESS.md
   examples/e1-site-config.yaml
+  examples/image-mirror-map.example.json
 )
 for file in "${required_files[@]}"; do
   [[ -f "$file" ]] || fail "required production file is missing: $file"
@@ -37,6 +40,7 @@ cluster_file=clusters/e1/data-services.yaml
 helmrelease=apps/data-services/openeverest-helmrelease.yaml
 api_file=apps/data-services/layersentry-dbaas-api.yaml
 spec_file=release/offline-release-spec.json
+mirror_example=examples/image-mirror-map.example.json
 
 # Runtime source is private, exact, authenticated and signature verified.
 require_pattern '^  url: \$\{LAYERSENTRY_OPENEVEREST_HELM_GIT_URL\}$' "$source_file" \
@@ -60,9 +64,8 @@ if grep -Eq '^versionMetadataURL:[[:space:]]+https?://(check\.percona\.com|[^/]*
   fail "public OpenEverest version metadata fallback found"
 fi
 
-# Upstream identity is kept as provenance rather than falsely reusing the
-# original commit SHA for the dependency-vendored mirror tree.
-python3 - "$spec_file" <<'PY'
+# Upstream identity is provenance; mirror identity is a separately signed commit.
+python3 - "$spec_file" "$mirror_example" <<'PY'
 import json,sys
 s=json.load(open(sys.argv[1]))
 assert s['schemaVersion'] == 1
@@ -73,8 +76,19 @@ assert s['runtimeSource']['commitVariable'] == 'LAYERSENTRY_OPENEVEREST_HELM_MIR
 assert s['runtimeSource']['chartPath'] == './packages/openeverest-1.16.2.tgz'
 assert s['productionPolicy']['signedMirrorCommitRequired'] is True
 assert s['productionPolicy']['vendoredHelmDependenciesRequired'] is True
+assert s['productionPolicy']['staticImageDigestsLockedRequired'] is True
 assert s['offlineDependencies']['containerRuntimeRegistryMirrorRequired'] is True
 assert s['offlineDependencies']['disableDefaultRegistryEndpointRequired'] is True
+assert s['offlineDependencies']['staticImageDigestLock'] == 'provenance/images.lock.json'
+assert s['offlineDependencies']['mirrorVerificationScript'] == 'scripts/verify-image-mirror.sh'
+
+example=json.load(open(sys.argv[2]))
+assert example['schemaVersion'] == 1
+assert isinstance(example.get('images'), list) and example['images']
+for item in example['images']:
+    assert isinstance(item.get('source'), str) and item['source']
+    assert isinstance(item.get('mirror'), str) and item['mirror']
+    assert item['source'] != item['mirror']
 PY
 
 # Preserve existing production-safe reconciliation behavior.
@@ -109,11 +123,23 @@ require_pattern '^  replicas: 1$' "$api_file" \
 require_pattern '^    type: Recreate$' "$api_file" \
   "FileStore DBaaS API must retain Recreate strategy"
 
-# All new release helper scripts must be strict shell and syntactically valid.
-for script in scripts/build-offline-release.sh scripts/verify-offline-release.sh scripts/create-offline-git-source.sh; do
+# All release helper scripts must be strict shell and syntactically valid.
+for script in \
+  scripts/build-offline-release.sh \
+  scripts/lock-image-digests.sh \
+  scripts/verify-image-mirror.sh \
+  scripts/verify-offline-release.sh \
+  scripts/create-offline-git-source.sh; do
   grep -Fxq 'set -euo pipefail' "$script" || fail "$script is not strict shell"
   bash -n "$script" || fail "$script has invalid shell syntax"
 done
+
+require_pattern 'docker buildx imagetools inspect' scripts/lock-image-digests.sh \
+  "image lock must resolve registry manifest digests"
+require_pattern 'images\.lock\.json' scripts/verify-offline-release.sh \
+  "offline release verifier must require the image digest lock"
+require_pattern 'mirror digest mismatch' scripts/verify-image-mirror.sh \
+  "private mirror verifier must fail on digest mismatch"
 
 rendered="$(mktemp)"
 trap 'rm -f "$rendered"' EXIT
