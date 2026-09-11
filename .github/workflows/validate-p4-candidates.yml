@@ -1,0 +1,35 @@
+name: Validate P4 APaaS candidates
+
+on:
+  pull_request:
+    paths:
+      - "catalog/v1/candidates/**"
+      - "scripts/validate_p4_candidates.py"
+      - "scripts/verify_p4_candidate_pins.sh"
+      - ".github/workflows/validate-p4-candidates.yml"
+  push:
+    branches: [main]
+    paths:
+      - "catalog/v1/candidates/**"
+      - "scripts/validate_p4_candidates.py"
+      - "scripts/verify_p4_candidate_pins.sh"
+      - ".github/workflows/validate-p4-candidates.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate candidate policy and immutable source pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/verify_p4_candidate_pins.sh
+          python3 -m py_compile scripts/validate_p4_candidates.py
+          bash scripts/verify_p4_candidate_pins.sh
