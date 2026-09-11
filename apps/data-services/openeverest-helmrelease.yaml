@@ -12,7 +12,9 @@ spec:
   targetNamespace: everest-system
   chart:
     spec:
-      chart: ./charts/everest
+      # Use the pre-packaged chart from the signed private Git mirror. This
+      # avoids any runtime dependency-resolution against public Helm repos.
+      chart: ./packages/openeverest-1.16.2.tgz
       reconcileStrategy: Revision
       sourceRef:
         kind: GitRepository
