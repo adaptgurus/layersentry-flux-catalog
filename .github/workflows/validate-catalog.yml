@@ -49,6 +49,9 @@ jobs:
           mapfile -t chart_packages < <(find "$tmp" -maxdepth 1 -type f -name '*.tgz' -print)
           test "${#chart_packages[@]}" -eq 1
           chart_package="${chart_packages[0]}"
+          helm show chart "$chart_package" > "$tmp/chart-metadata.yaml"
+          grep -Fx 'name: cert-manager' "$tmp/chart-metadata.yaml" >/dev/null
+          grep -Fx 'version: v1.21.1' "$tmp/chart-metadata.yaml" >/dev/null
 
           python3 - <<'PY' > "$tmp/images.txt"
           import json
@@ -73,19 +76,9 @@ jobs:
           PY
           mapfile -t digest_values < "$tmp/digest-values.txt"
 
-          # Production performs the same two-phase flow: verify the versioned
-          # OCI pull and registry digest first, then mutate from that private
-          # local package. Digest-addressed `helm install --verify` is not used
-          # because Helm's provenance filename is version-based.
-          helm install cert-manager "$chart_package" \
-            --namespace cert-manager \
-            --create-namespace \
-            --description layersentry-op:0123456789abcdef0123456789abcdef \
-            --timeout 10m \
-            --wait \
-            --dry-run=client \
-            "${digest_values[@]}" > "$tmp/runtime-install.txt"
-
+          # Production mutates only from this already PGP-verified local package.
+          # Hosted CI proves the local package identity and rendering; the real
+          # Helm install is intentionally reserved for the owned RKE2 live gate.
           helm template cert-manager "$chart_package" \
             --namespace cert-manager \
             --set=crds.enabled=true \
@@ -94,5 +87,4 @@ jobs:
           while IFS= read -r image; do
             digest="${image##*@}"
             grep -F -- "$digest" "$tmp/rendered.yaml" >/dev/null
-            grep -F -- "$digest" "$tmp/runtime-install.txt" >/dev/null
           done < "$tmp/images.txt"
