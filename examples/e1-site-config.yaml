@@ -1,0 +1,30 @@
+# Example only. Copy these keys into the existing <cluster>-site-config
+# ConfigMap in the OneKS/Flux management namespace. Do not put credentials,
+# private keys, CA private material, or database passwords in this ConfigMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-site-config
+data:
+  # Signed private Git mirror created from the qualified offline release bundle.
+  LAYERSENTRY_OPENEVEREST_HELM_GIT_URL: https://git.internal.example/layersentry/openeverest-offline.git
+  LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT: REPLACE_WITH_SIGNED_MIRROR_COMMIT
+  LAYERSENTRY_OPENEVEREST_GIT_AUTH_SECRET: openeverest-offline-git-auth
+  LAYERSENTRY_OPENEVEREST_GIT_VERIFY_SECRET: openeverest-offline-release-keys
+
+  # Internal mirror of OpenEverest/Percona version metadata. It must advertise
+  # only operator/database/backup images that have been imported to the site's
+  # registry mirrors and qualified for this release.
+  LAYERSENTRY_OPENEVEREST_VERSION_METADATA_URL: https://metadata.internal.example/openeverest
+
+  # LayerSentry product image must be immutable and available through the
+  # air-gapped registry path.
+  LAYERSENTRY_DBAAS_API_IMAGE: registry.internal.example/layersentry/dbaas-api@sha256:REPLACE
+
+  # Existing production inputs.
+  LAYERSENTRY_DBAAS_CERT_ISSUER_NAME: layersentry-ca
+  LAYERSENTRY_DBAAS_STATE_STORAGE_CLASS: layersentry-csi
+  LAYERSENTRY_DBAAS_STATE_SIZE: 1Gi
+  LAYERSENTRY_DBAAS_BACKUP_STORAGE: REPLACE_WITH_QUALIFIED_OPENEVEREST_BACKUP_STORAGE
+  LAYERSENTRY_DBAAS_DEFAULT_CPU: "1"
+  LAYERSENTRY_DBAAS_DEFAULT_MEMORY: 1Gi
