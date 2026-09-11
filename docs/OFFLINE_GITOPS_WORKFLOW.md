@@ -1,107 +1,109 @@
-# LayerSentry DBaaS offline GitOps workflow
+# LayerSentry DBaaS offline Flux GitOps workflow
 
-This workflow keeps the existing LayerSentry/OpenNebula/OneKS/OpenEverest design.
-Flux remains the deployment and drift-remediation mechanism; no second
-orchestrator or package manager is introduced.
+LayerSentry keeps the existing OpenNebula/OneKS/OpenEverest design. Flux remains
+the deployment and drift-remediation mechanism; this repository does not add a
+second operator or package manager.
 
-## Runtime flow
+## Production flow
 
 ```text
-approved LayerSentry catalog commit
+qualified upstream OpenEverest 1.16.2 commit
         |
         v
-Flux GitRepository: layersentry-e1-catalog
+connected qualification CI
+  - verifies chart/app/Chart.lock identity
+  - resolves only locked Helm dependencies
+  - vendors all Helm dependencies
+  - packages chart
+  - renders chart and inventories static images/registries
+  - emits release manifest + SHA256SUMS
         |
         v
-clusters/e1
-        |
-        +--> workload Kustomization (existing CCM/CSI baseline)
+controlled air-gap transfer
         |
         v
-data-services Kustomization
+signed private Git mirror commit
         |
-        +--> mandatory <cluster>-site-config
-        |       |
-        |       +--> offline OpenEverest package source URL
-        |       +--> LayerSentry DBaaS API image
-        |       +--> certificate issuer
-        |       +--> state storage class
-        |       +--> backup storage
+        +--> private Git auth/CA Secret
+        +--> trusted release-signing public-key Secret
         |
         v
-OpenEverest GitRepository (pinned qualified commit)
+Flux GitRepository (exact mirror commit + signature verification)
         |
         v
-HelmRelease
+HelmRelease ./packages/openeverest-1.16.2.tgz
         |
-        +--> CRDs: CreateReplace
-        +--> upgrade failure: rollback
-        +--> cleanupOnFail
-        +--> drift detection
-        +--> prune disabled at the DBaaS Kustomization boundary
+        +--> internal OpenEverest version metadata URL
+        +--> RKE2/containerd registry mirrors
+        +--> site certificate issuer
+        +--> real CSI state/DB storage
+        +--> qualified backup storage
         |
         v
 LayerSentry DBaaS runtime
 ```
 
-## Offline boundary
+## Two distinct commit identities
 
-The reconciled DBaaS manifests must not contain public package URLs or public
-container-registry defaults. `LAYERSENTRY_OPENEVEREST_HELM_GIT_URL` is required
-from the cluster site ConfigMap and has no Internet fallback.
+Do not confuse provenance and runtime transport:
 
-The actual package-ingestion location is intentionally not selected here. We can
-later choose the approved air-gap transport and repository (for example, an
-internal Git service or a registry-backed packaging model) without changing the
-customer workflow. Until that decision is made, the runtime contract is simply:
-the URL supplied to Flux must be reachable from the air-gapped management
-environment and must contain the qualified OpenEverest chart content for the
-pinned provenance commit.
+- **Upstream provenance commit:**
+  `568186ace62846557e29841edad76c08f8b913a4`. This identifies the qualified
+  OpenEverest source and never changes for this release.
+- **Offline mirror commit:** generated after locked Helm dependencies are
+  vendored into the release source. It is site/release specific, must be signed,
+  and is supplied as `LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT`.
 
-CI is allowed to contact the public upstream repository only to prove provenance
-of the qualified source. That is qualification-time traffic, not production
-runtime traffic.
+Vendoring dependencies changes the Git tree, so claiming that a vendored mirror
+has the original upstream commit SHA would be incorrect. The release manifest
+and SHA-256 chain binds the mirror content back to the upstream provenance.
 
-## Required site inputs
+## Package source boundary
 
-The existing `${CLUSTER_NAME}-site-config` is mandatory and is the owner of
-environment-specific values. At minimum the DBaaS path expects:
+The final products used to host the private Git repository, image registries and
+internal metadata endpoint remain deployment choices. LayerSentry requires only
+these interfaces:
 
-- `LAYERSENTRY_OPENEVEREST_HELM_GIT_URL`
-- `LAYERSENTRY_DBAAS_API_IMAGE`
-- `LAYERSENTRY_DBAAS_CERT_ISSUER_NAME`
-- `LAYERSENTRY_DBAAS_STATE_STORAGE_CLASS`
-- `LAYERSENTRY_DBAAS_BACKUP_STORAGE`
+- Git source reachable by Flux without Internet access;
+- exact signed mirror commit;
+- Git auth/CA Secret and signature-verification Secret;
+- container runtime registry mirrors that cover the release inventory and all
+  dynamically advertised DB/operator images;
+- RKE2 `disable-default-registry-endpoint: true` with an explicit mirror entry
+  for every source registry, preventing containerd from falling back to Internet
+  default registry endpoints;
+- internal OpenEverest version metadata endpoint.
 
-The issuer group/kind may continue to use their existing safe defaults where
-appropriate. Secrets, credentials, trusted CA material and registry credentials
-must remain outside Git.
+This lets the package repository/transfer technology be selected later without
+changing the DBaaS lifecycle code.
 
-## Package-source stage to finalize later
+## Secrets
 
-Before live air-gap deployment, the selected offline package source must provide:
+Never commit Git passwords/tokens, SSH private keys, registry credentials,
+database credentials, OpenEverest tokens, CA private keys or release private
+signing keys. `GitRepository.spec.secretRef` and `.spec.verify.secretRef` point to
+same-namespace Kubernetes Secrets provisioned through the authorized secret
+management process.
 
-1. the exact qualified OpenEverest chart content and locked dependencies;
-2. every container image required by OpenEverest and its enabled dependencies;
-3. the LayerSentry DBaaS API image by immutable identity;
-4. any Flux controller images needed by the cluster bootstrap;
-5. integrity metadata sufficient to verify that imported artifacts are the same
-   artifacts qualified by CI.
+## CI artifacts
 
-The ingestion/mirroring implementation is deliberately left behind this
-interface until the package repository/transport is selected.
+The offline workflow produces a bundle containing:
 
-## CI workflow
+- `source/charts/everest/` with locked dependencies vendored;
+- `packages/openeverest-1.16.2.tgz`;
+- `provenance/offline-release-spec.json`;
+- upstream repository/commit and tool versions;
+- rendered OpenEverest manifest used for static inventory;
+- `images.required.txt` and `registries.required.txt`;
+- `release-manifest.json`;
+- `SHA256SUMS`.
 
-`.github/workflows/offline-gitops.yml` validates the fail-closed runtime contract
-and emits a deterministic handoff artifact containing:
+Static image discovery cannot see every image that will later be selected by the
+OLM catalog or OpenEverest version metadata. Production promotion therefore must
+also mirror and lock those dynamic artifacts before live deployment.
 
-- rendered DBaaS manifests;
-- the target-cluster Flux Kustomization;
-- the upstream artifact lock;
-- the exact catalog commit;
-- SHA-256 checksums.
+## Runtime qualification
 
-This artifact is evidence for source/CI qualification only. It does not prove
-live database provisioning, persistent CSI behavior, backup/restore, PITR or
-failure recovery.
+A green bundle/build pipeline is source/CI evidence only. Real DB provisioning,
+persistent CSI I/O, pod/node failure, backup, restore, PITR, upgrades, deletion
+protection and offline dependency behavior remain separate live exit gates.
