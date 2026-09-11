@@ -24,14 +24,45 @@ done
   sha256sum -c SHA256SUMS >/dev/null
 ) || fail "second release checksum verification failed"
 
-# The complete pre-image-lock builder output must be byte-identical. This proves
-# the vendored source, dependency archives, parent package, provenance and
-# checksum chain do not depend on qualification-run wall-clock time.
-cmp -s "$FIRST/SHA256SUMS" "$SECOND/SHA256SUMS" || fail "release checksum manifests differ"
-cmp -s "$FIRST/release-manifest.json" "$SECOND/release-manifest.json" || fail "release manifests differ"
-cmp -s "$FIRST/packages/openeverest-1.16.2.tgz" "$SECOND/packages/openeverest-1.16.2.tgz" || fail "parent Helm package bytes differ"
-diff -qr "$FIRST/source" "$SECOND/source" >/dev/null || fail "vendored source trees differ"
-diff -qr "$FIRST/provenance" "$SECOND/provenance" >/dev/null || fail "builder provenance differs"
+# Install-time OpenEverest rendering contains intentionally generated JWT/admin
+# secret material. A full rendered manifest must never be retained as release
+# evidence; only deterministic inventories/summaries belong in provenance.
+for bundle in "$FIRST" "$SECOND"; do
+  [[ ! -e "$bundle/provenance/openeverest-rendered.yaml" ]] \
+    || fail "generated-secret Helm render was persisted in release evidence: $bundle"
+  [[ -s "$bundle/provenance/rendered-resource-kinds.txt" ]] \
+    || fail "deterministic rendered resource summary is missing: $bundle"
+done
+
+# The complete pre-image-lock builder output must be byte-identical. On failure,
+# print the exact diff before exiting so CI evidence identifies the nondeterminism.
+if ! cmp -s "$FIRST/SHA256SUMS" "$SECOND/SHA256SUMS"; then
+  echo "--- SHA256SUMS diff ---" >&2
+  diff -u "$FIRST/SHA256SUMS" "$SECOND/SHA256SUMS" >&2 || true
+  fail "release checksum manifests differ"
+fi
+if ! cmp -s "$FIRST/release-manifest.json" "$SECOND/release-manifest.json"; then
+  echo "--- release-manifest.json diff ---" >&2
+  diff -u "$FIRST/release-manifest.json" "$SECOND/release-manifest.json" >&2 || true
+  fail "release manifests differ"
+fi
+if ! cmp -s "$FIRST/packages/openeverest-1.16.2.tgz" "$SECOND/packages/openeverest-1.16.2.tgz"; then
+  echo "first package:  $(sha256sum "$FIRST/packages/openeverest-1.16.2.tgz")" >&2
+  echo "second package: $(sha256sum "$SECOND/packages/openeverest-1.16.2.tgz")" >&2
+  fail "parent Helm package bytes differ"
+fi
+if ! diff -qr "$FIRST/source" "$SECOND/source" >/tmp/layersentry-source-diff.$$; then
+  cat /tmp/layersentry-source-diff.$$ >&2
+  rm -f /tmp/layersentry-source-diff.$$
+  fail "vendored source trees differ"
+fi
+rm -f /tmp/layersentry-source-diff.$$
+if ! diff -qr "$FIRST/provenance" "$SECOND/provenance" >/tmp/layersentry-provenance-diff.$$; then
+  cat /tmp/layersentry-provenance-diff.$$ >&2
+  rm -f /tmp/layersentry-provenance-diff.$$
+  fail "builder provenance differs"
+fi
+rm -f /tmp/layersentry-provenance-diff.$$
 
 python3 - "$FIRST/release-manifest.json" "$SECOND/release-manifest.json" <<'PY'
 import json
@@ -44,6 +75,7 @@ for obj in (first, second):
     assert obj['reproducibility']['sourceDateEpochPinned'] is True
     assert obj['reproducibility']['deterministicLocalDependencyArchives'] is True
     assert obj['reproducibility']['deterministicParentPackage'] is True
+    assert obj['reproducibility']['generatedSecretRenderExcluded'] is True
     assert obj['helmDependencies']['localArchivesCanonicalized'] is True
     assert obj['helmDependencies']['externalArchivesPreserved'] is True
 assert first['offlineSource']['sourceTreeSha256'] == second['offlineSource']['sourceTreeSha256']
