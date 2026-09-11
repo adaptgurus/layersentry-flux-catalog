@@ -16,6 +16,7 @@ on:
       - 'release/**'
       - 'scripts/verify-data-services.sh'
       - '.github/workflows/validate-data-services.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

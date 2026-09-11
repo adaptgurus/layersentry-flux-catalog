@@ -80,4 +80,5 @@ jobs:
           name: layersentry-dbaas-offline-release-${{ env.SOURCE_SHA }}
           path: dist/offline-release/
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 30
