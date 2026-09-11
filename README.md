@@ -1,44 +1,53 @@
 # LayerSentry qualification catalog
 
-Approved publication home for `ghcr.io/adaptgurus/layersentry-cloudstack-ccm`
-and `ghcr.io/adaptgurus/layersentry-cloudstack-csi`.
+This repository is the pinned GitOps qualification catalog used by LayerSentry
+OneKS/RKE2 workloads. It does not contain customer credentials and a green CI
+run is not, by itself, a claim of live production certification.
 
-Qualification artifacts only. No production or live qualification is implied.
-No credentials are stored here. Canal is the selected RKE2 primary CNI.
+## Existing workload baseline
 
-## Qualification consumption
+The catalog retains the qualified LayerSentry CCM/CSI workload manifests and the
+existing `clusters/e1` remote-cluster reconciliation model. Canal remains the
+selected RKE2 primary CNI. Persistent CSI, snapshot, backup/restore and failure
+behavior require separate live qualification.
 
-The existing LayerSentry `FluxBaseline` reads this repository at an exact commit
-and `./clusters/e1`. That path creates a nested Flux Kustomization bound to the
-CAPI-generated `${CLUSTER_NAME}-kubeconfig` Secret (key `value`) in the tenant
-namespace. Its source is `flux-system/layersentry-e1-catalog`; its workload path
-is `./workload`. This catalog therefore requires the runtime's default
-`sourceNamespace=flux-system`. It never embeds Kubernetes or CloudStack keys.
+## LayerSentry DBaaS
 
-Before reconciliation, separately provision the workload Secrets referenced by
-the pinned upstream CCM/CSI manifests, with the authorized CloudStack project
-and TLS configuration. No storage classes, workload PVCs or applications are
-created by this baseline. All CCM/CSI/Flux live qualification remains pending.
+Customer-facing name: **LayerSentry DBaaS**. OpenEverest is an implementation
+detail. The qualified upstream baseline is OpenEverest 1.16.2.
 
-Canal is selected through CAPRKE2 `serverConfig.cni=canal`, using the RKE2
-v1.36.4+rke2r1 packaged Canal chart. `upstream-artifact-lock.json` records exact
-core/Canal image digests and the upstream release inventory identities; this
-lock is not a claim that RKE2 tag-based pulls have been replaced or live-tested.
+The DBaaS deployment uses Flux `GitRepository` + `HelmRelease` with:
 
-CSI uses the pinned upstream 3.0.2 deployment/RBAC/CRD files with only its image
-references replaced. CCM likewise retains its pinned upstream deployment/RBAC.
-Neither the CSI snapshot CRDs nor available sidecars imply snapshot/PITR
-qualification. The optional storage-class syncer is deliberately not deployed.
+- exact, signed private mirror commit;
+- private Git authentication/CA Secret;
+- release-signature verification Secret;
+- pre-packaged chart with vendored locked Helm dependencies so runtime does not fetch public Helm repos;
+- mandatory internal OpenEverest version metadata URL;
+- real site-selected CSI state storage and backup storage;
+- TLS/RBAC;
+- CRD `CreateReplace` lifecycle;
+- upgrade rollback/remediation and cleanup-on-failure;
+- drift correction;
+- data-preserving `prune: false`;
+- single-writer persistent LayerSentry DBaaS API state.
 
-## DBaaS offline GitOps contract
+The connected CI release builder emits the vendored chart, packaged chart,
+static image/registry inventory, provenance manifest and SHA-256 checksums. The
+final private Git/registry products and physical transfer method remain site
+choices and are deliberately not hard-coded.
 
-The DBaaS runtime path is fail-closed for offline/private deployment. The
-reconciled OpenEverest Flux source has no public URL default; the mandatory
-cluster site ConfigMap must provide `LAYERSENTRY_OPENEVEREST_HELM_GIT_URL`.
-Public upstream access is limited to CI provenance qualification and is not a
-runtime dependency.
+See:
 
-The package ingestion/mirror technology is intentionally not selected yet.
-See `docs/OFFLINE_GITOPS_WORKFLOW.md` for the Flux workflow, required site
-inputs, handoff artifact and the boundary that will be completed after the
-offline package source is chosen.
+- `docs/OFFLINE_GITOPS_WORKFLOW.md`
+- `docs/PRODUCTION_READINESS.md`
+- `examples/e1-site-config.yaml`
+- `release/offline-release-spec.json`
+
+## Air-gap qualification boundary
+
+OpenEverest's current support documentation does not yet generally certify
+fully air-gapped environments, although recent chart releases include offline
+upgrade improvements. LayerSentry therefore treats offline DBaaS as an explicit
+integration qualification boundary. Source/CI can prove the package and GitOps
+contract; live production acceptance still requires real offline database,
+CSI, backup/restore/PITR and failure-recovery testing.
