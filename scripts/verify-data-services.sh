@@ -40,8 +40,8 @@ git -C "$chartdir" init -q
 git -C "$chartdir" remote add origin "$OPENEVEREST_REPO"
 git -C "$chartdir" fetch -q --depth=1 origin "$OPENEVEREST_COMMIT"
 git -C "$chartdir" checkout -q FETCH_HEAD
-chart_version="$(awk '$1=="version:" {gsub(/\"/,"",$2); print $2}' "$chartdir/charts/everest/Chart.yaml")"
-app_version="$(awk '$1=="appVersion:" {gsub(/\"/,"",$2); print $2}' "$chartdir/charts/everest/Chart.yaml")"
+chart_version="$(awk -F':[[:space:]]*' '/^version:/ {gsub(/["[:space:]]/, "", $2); print $2; exit}' "$chartdir/charts/everest/Chart.yaml")"
+app_version="$(awk -F':[[:space:]]*' '/^appVersion:/ {gsub(/["[:space:]]/, "", $2); print $2; exit}' "$chartdir/charts/everest/Chart.yaml")"
 [[ "$chart_version" == "1.16.2" ]] || fail "unexpected OpenEverest Helm chart version: $chart_version"
 [[ "$app_version" == "1.16.2" ]] || fail "unexpected OpenEverest application version: $app_version"
 
