@@ -21,6 +21,8 @@
     "versionMetadataURLVariable": "LAYERSENTRY_OPENEVEREST_VERSION_METADATA_URL",
     "containerRuntimeRegistryMirrorRequired": true,
     "disableDefaultRegistryEndpointRequired": true,
+    "staticImageDigestLock": "provenance/images.lock.json",
+    "mirrorVerificationScript": "scripts/verify-image-mirror.sh",
     "dynamicArtifactSources": [
       "OpenEverest OLM CatalogSource database-operator bundles",
       "OpenEverest version-metadata database engine and backup images"
@@ -29,6 +31,7 @@
   "productionPolicy": {
     "secretsInGit": false,
     "immutableLayerSentryAPIImageRequired": true,
+    "staticImageDigestsLockedRequired": true,
     "signedMirrorCommitRequired": true,
     "vendoredHelmDependenciesRequired": true,
     "liveAirGapQualificationRequired": true
