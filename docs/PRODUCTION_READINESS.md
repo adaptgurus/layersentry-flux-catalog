@@ -72,7 +72,9 @@ Before enabling the DBaaS Flux Kustomization for a production cluster:
 - the Flux verification Secret contains the approved release public key;
 - RKE2/containerd registry mirrors cover every registry/image in the release
   inventory plus every image advertised by the mirrored OpenEverest metadata and
-  OLM catalog;
+  OLM catalog; every source registry has a mirror entry and RKE2 uses
+  `disable-default-registry-endpoint: true` so mirror failure cannot fall back to
+  the public registry;
 - internal version metadata service is reachable and contains only imported,
   approved artifacts;
 - DBaaS runtime auth Secret, qualified catalog ConfigMap and trusted CAs exist;
