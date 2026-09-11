@@ -34,10 +34,18 @@ require_pattern '^        optional: false$' clusters/e1/data-services.yaml "data
 require_pattern '^          image: \$\{LAYERSENTRY_DBAAS_API_IMAGE\}$' apps/data-services/layersentry-dbaas-api.yaml "LayerSentry DBaaS API image must be supplied by release/site configuration"
 require_pattern '^  storageClassName: \$\{LAYERSENTRY_DBAAS_STATE_STORAGE_CLASS\}$' apps/data-services/layersentry-dbaas-api.yaml "DBaaS state storage class must be site-qualified"
 require_pattern '^              value: \$\{LAYERSENTRY_DBAAS_BACKUP_STORAGE\}$' apps/data-services/layersentry-dbaas-api.yaml "DBaaS backup storage must be site-qualified"
-require_pattern '^    replicas: 1$' apps/data-services/layersentry-dbaas-api.yaml "FileStore DBaaS API must remain single-writer"
+require_pattern '^  replicas: 1$' apps/data-services/layersentry-dbaas-api.yaml "FileStore DBaaS API must remain single-writer"
 require_pattern '^    type: Recreate$' apps/data-services/layersentry-dbaas-api.yaml "FileStore DBaaS API must use Recreate strategy"
 require_pattern '^              value: /run/layersentry/auth/openeverest-ca\.crt$' apps/data-services/layersentry-dbaas-api.yaml "OpenEverest trusted CA file must be configured"
 require_pattern '^    name: \$\{LAYERSENTRY_DBAAS_CERT_ISSUER_NAME\}$' apps/data-services/layersentry-dbaas-api.yaml "LayerSentry API TLS must use the site-provided cert-manager issuer"
+
+# The provider HelmRelease must retain production-safe CRD lifecycle,
+# remediation/rollback, and drift detection rather than merely rendering.
+require_pattern '^    crds: CreateReplace$' apps/data-services/openeverest-helmrelease.yaml "OpenEverest CRDs must use CreateReplace lifecycle"
+require_pattern '^      strategy: rollback$' apps/data-services/openeverest-helmrelease.yaml "OpenEverest upgrade remediation must roll back"
+require_pattern '^    cleanupOnFail: true$' apps/data-services/openeverest-helmrelease.yaml "OpenEverest failed upgrade cleanup is required"
+require_pattern '^  driftDetection:$' apps/data-services/openeverest-helmrelease.yaml "OpenEverest drift detection block is missing"
+require_pattern '^    mode: enabled$' apps/data-services/openeverest-helmrelease.yaml "OpenEverest drift detection must be enabled"
 
 rendered="$(mktemp)"
 chartdir="$(mktemp -d)"
