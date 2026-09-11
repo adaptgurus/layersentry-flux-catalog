@@ -56,6 +56,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Install upstream-qualified Helm toolchain
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+        with:
+          version: v3.14.0
       - name: Build qualified self-contained offline release
         shell: bash
         run: bash scripts/build-offline-release.sh dist/offline-release
