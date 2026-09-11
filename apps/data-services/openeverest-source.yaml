@@ -8,9 +8,21 @@ metadata:
 spec:
   interval: 30m
   timeout: 2m
-  # Runtime is intentionally fail-closed for air-gapped/private deployments.
-  # The site ConfigMap must provide an offline-accessible mirror URL. CI keeps
-  # the upstream provenance pin separate from this runtime transport.
+  provider: generic
+  # Production runtime consumes only the signed internal mirror generated from
+  # the qualified offline release bundle. There is intentionally no Internet
+  # fallback here.
   url: ${LAYERSENTRY_OPENEVEREST_HELM_GIT_URL}
+  secretRef:
+    # Same-namespace Secret. For HTTPS it may contain username/password or
+    # bearerToken plus ca.crt; for SSH it contains identity and known_hosts.
+    name: ${LAYERSENTRY_OPENEVEREST_GIT_AUTH_SECRET}
   ref:
-    commit: 568186ace62846557e29841edad76c08f8b913a4
+    # This is the signed *mirror* commit, not the upstream provenance commit.
+    # Upstream identity remains locked in release/offline-release-spec.json.
+    commit: ${LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT}
+  verify:
+    mode: HEAD
+    secretRef:
+      # Contains trusted PGP (*.asc) or SSH (*.sshpub) release-signing keys.
+      name: ${LAYERSENTRY_OPENEVEREST_GIT_VERIFY_SECRET}
