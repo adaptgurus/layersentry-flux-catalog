@@ -39,27 +39,30 @@ jobs:
             https://cert-manager.io/public-keys/cert-manager-pubkey-2021-09-20.pem \
             -o "$image_key"
 
-          expected_chart="sha256:15c0b46d9006ce8eb9ff14d1bf54d1bbfcc587bb9e24cd9fe186fb8fec56af1f"
-          output="$(helm pull oci://quay.io/jetstack/charts/cert-manager \
-            --version v1.21.1 --verify --keyring "$keyring" --destination "$tmp" 2>&1)"
+          python3 - <<'PY' > "$tmp/chart.env"
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          version=data['entries'][0]['supportedVersions'][0]
+          print('CHART_REPO='+version['chart']['ociRepository'])
+          print('CHART_VERSION='+version['chart']['version'])
+          print('EXPECTED_CHART='+version['chart']['manifestDigest'])
+          print('EXPECTED_PACKAGE='+data['entries'][0]['airGapArtifacts']['chart']['packageDigest'])
+          PY
+          source "$tmp/chart.env"
+          output="$(helm pull "$CHART_REPO" --version "$CHART_VERSION" --verify --keyring "$keyring" --destination "$tmp" 2>&1)"
           printf '%s\n' "$output"
           actual_chart="$(printf '%s\n' "$output" | awk '/^Digest:/ {print $2}' | tail -1)"
-          test "$actual_chart" = "$expected_chart"
+          test "$actual_chart" = "$EXPECTED_CHART"
+          printf '%s\n' "$output" | grep -F 'Using Key With Fingerprint: 1020CF3C033D4F35BAE1C19E1226061C665DF13E' >/dev/null
 
           mapfile -t chart_packages < <(find "$tmp" -maxdepth 1 -type f -name '*.tgz' -print)
           test "${#chart_packages[@]}" -eq 1
           chart_package="${chart_packages[0]}"
-          expected_package="$(python3 - <<'PY'
-          import json
-          data=json.load(open('catalog/v1/catalog.json'))
-          print(data['entries'][0]['airGapArtifacts']['chart']['packageDigest'])
-          PY
-          )"
           actual_package="sha256:$(sha256sum "$chart_package" | awk '{print $1}')"
-          test "$actual_package" = "$expected_package"
+          test "$actual_package" = "$EXPECTED_PACKAGE"
           helm show chart "$chart_package" > "$tmp/chart-metadata.yaml"
           grep -Fx 'name: cert-manager' "$tmp/chart-metadata.yaml" >/dev/null
-          grep -Fx 'version: v1.21.1' "$tmp/chart-metadata.yaml" >/dev/null
+          grep -Fx "version: $CHART_VERSION" "$tmp/chart-metadata.yaml" >/dev/null
 
           python3 - <<'PY' > "$tmp/release-assets.tsv"
           import json
@@ -86,11 +89,7 @@ jobs:
               print(image['immutableRef'])
           PY
           while IFS= read -r image; do
-            cosign verify \
-              --signature-digest-algorithm sha512 \
-              --insecure-ignore-tlog \
-              --key "$image_key" \
-              "$image" >/dev/null
+            cosign verify --signature-digest-algorithm sha512 --insecure-ignore-tlog --key "$image_key" "$image" >/dev/null
           done < "$tmp/images.txt"
 
           python3 - <<'PY' > "$tmp/digest-values.txt"
@@ -108,13 +107,10 @@ jobs:
           for image in data['entries'][0]['airGapArtifacts']['images']:
               name=image['repository'].rsplit('/', 1)[-1]
               mirror=f'registry.airgap.invalid/layersentry/{name}'
-              print(f"--set={image['helmRepositoryValue']}={mirror}")
+              print(f"--set-string={image['helmRepositoryValue']}={mirror}")
           PY
           mapfile -t mirror_values < "$tmp/mirror-values.txt"
 
-          # Production mutates from an already verified local package. The
-          # air-gap contract additionally proves every image repository can be
-          # redirected to a server-owned mirror while retaining pinned digests.
           helm template cert-manager "$chart_package" \
             --namespace cert-manager \
             --set=crds.enabled=true \
