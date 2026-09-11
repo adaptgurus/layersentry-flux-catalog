@@ -7,6 +7,25 @@ metadata:
     app.kubernetes.io/name: layersentry-dbaas-api
     app.kubernetes.io/part-of: layersentry-dbaas
 ---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: layersentry-dbaas-api
+  namespace: everest-system
+  labels:
+    app.kubernetes.io/name: layersentry-dbaas-api
+    app.kubernetes.io/part-of: layersentry-dbaas
+spec:
+  secretName: layersentry-dbaas-api-tls
+  commonName: layersentry-dbaas-api.everest-system.svc
+  dnsNames:
+    - layersentry-dbaas-api.everest-system.svc
+    - layersentry-dbaas-api.everest-system.svc.cluster.local
+  issuerRef:
+    group: ${LAYERSENTRY_DBAAS_CERT_ISSUER_GROUP:=cert-manager.io}
+    kind: ${LAYERSENTRY_DBAAS_CERT_ISSUER_KIND:=ClusterIssuer}
+    name: ${LAYERSENTRY_DBAAS_CERT_ISSUER_NAME}
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -77,11 +96,11 @@ spec:
             - name: LAYERSENTRY_STATE_DIR
               value: /var/lib/layersentry-dbaas
             - name: LAYERSENTRY_API_TOKEN_FILE
-              value: /run/layersentry/secrets/api-token
+              value: /run/layersentry/auth/api-token
             - name: LAYERSENTRY_TLS_CERT_FILE
-              value: /run/layersentry/secrets/tls.crt
+              value: /run/layersentry/tls/tls.crt
             - name: LAYERSENTRY_TLS_KEY_FILE
-              value: /run/layersentry/secrets/tls.key
+              value: /run/layersentry/tls/tls.key
             - name: LAYERSENTRY_DB_VERSION_CATALOG_FILE
               value: /etc/layersentry/catalog/catalog.json
             - name: OPENEVEREST_URL
@@ -95,14 +114,17 @@ spec:
             - name: OPENEVEREST_DEFAULT_MEMORY
               value: ${LAYERSENTRY_DBAAS_DEFAULT_MEMORY:=1Gi}
             - name: OPENEVEREST_TOKEN_FILE
-              value: /run/layersentry/secrets/openeverest-token
+              value: /run/layersentry/auth/openeverest-token
             - name: OPENEVEREST_CA_FILE
-              value: /run/layersentry/secrets/openeverest-ca.crt
+              value: /run/layersentry/auth/openeverest-ca.crt
           volumeMounts:
             - name: state
               mountPath: /var/lib/layersentry-dbaas
-            - name: runtime-secrets
-              mountPath: /run/layersentry/secrets
+            - name: runtime-auth
+              mountPath: /run/layersentry/auth
+              readOnly: true
+            - name: api-tls
+              mountPath: /run/layersentry/tls
               readOnly: true
             - name: qualified-catalog
               mountPath: /etc/layersentry/catalog
@@ -143,12 +165,20 @@ spec:
         - name: state
           persistentVolumeClaim:
             claimName: layersentry-dbaas-api-state
-        - name: runtime-secrets
+        - name: runtime-auth
           secret:
-            secretName: layersentry-dbaas-runtime
+            # Pre-provisioned by the authorized secret-management workflow.
+            # Required keys: api-token, openeverest-token, openeverest-ca.crt.
+            secretName: layersentry-dbaas-runtime-auth
+            defaultMode: 0400
+        - name: api-tls
+          secret:
+            secretName: layersentry-dbaas-api-tls
             defaultMode: 0400
         - name: qualified-catalog
           configMap:
+            # Required key: catalog.json. The API refuses versions/storage
+            # classes that are absent from this release/site qualification list.
             name: layersentry-dbaas-qualified-catalog
 ---
 apiVersion: v1
