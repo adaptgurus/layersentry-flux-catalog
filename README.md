@@ -32,8 +32,13 @@ The DBaaS deployment uses Flux `GitRepository` + `HelmRelease` with:
 - single-writer persistent LayerSentry DBaaS API state.
 
 The connected CI release builder emits the vendored chart, packaged chart,
-static image/registry inventory, provenance manifest and SHA-256 checksums. The
-final private Git/registry products and physical transfer method remain site
+static image/registry inventory, **immutable registry manifest digest lock**,
+provenance manifest and SHA-256 checksums. `scripts/verify-image-mirror.sh`
+compares the imported private-registry copies against that digest lock after the
+site chooses its registry layout. This prevents a mutable upstream tag from
+silently changing the qualified release identity.
+
+The final private Git/registry products and physical transfer method remain site
 choices and are deliberately not hard-coded.
 
 See:
@@ -45,9 +50,10 @@ See:
 
 ## Air-gap qualification boundary
 
-OpenEverest's current support documentation does not yet generally certify
-fully air-gapped environments, although recent chart releases include offline
-upgrade improvements. LayerSentry therefore treats offline DBaaS as an explicit
-integration qualification boundary. Source/CI can prove the package and GitOps
-contract; live production acceptance still requires real offline database,
-CSI, backup/restore/PITR and failure-recovery testing.
+OpenEverest's current versioned support documentation still states that fully
+air-gapped environments are not generally supported, while current product
+material also describes air-gapped/self-hosted deployments. LayerSentry treats
+that inconsistency as an explicit qualification boundary: source/CI can prove the
+package, image digests and GitOps contract; live production acceptance still
+requires real offline database, CSI, backup/restore/PITR and failure-recovery
+testing.
