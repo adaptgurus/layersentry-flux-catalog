@@ -15,11 +15,12 @@
     "commitVariable": "LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT",
     "authSecretVariable": "LAYERSENTRY_OPENEVEREST_GIT_AUTH_SECRET",
     "verificationSecretVariable": "LAYERSENTRY_OPENEVEREST_GIT_VERIFY_SECRET",
-    "chartPath": "./charts/everest"
+    "chartPath": "./packages/openeverest-1.16.2.tgz"
   },
   "offlineDependencies": {
     "versionMetadataURLVariable": "LAYERSENTRY_OPENEVEREST_VERSION_METADATA_URL",
     "containerRuntimeRegistryMirrorRequired": true,
+    "disableDefaultRegistryEndpointRequired": true,
     "dynamicArtifactSources": [
       "OpenEverest OLM CatalogSource database-operator bundles",
       "OpenEverest version-metadata database engine and backup images"
