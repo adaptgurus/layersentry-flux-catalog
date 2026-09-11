@@ -13,11 +13,14 @@ qualified upstream OpenEverest 1.16.2 commit
 connected qualification CI
   - verifies chart/app/Chart.lock identity
   - resolves only locked Helm dependencies
-  - vendors all Helm dependencies
-  - packages chart
-  - renders chart and inventories static images/registries
+  - canonicalizes Helm-generated file:// dependency archives
+  - verifies all 8 dependency archive SHA-256 values
+  - canonicalizes the final parent chart package
+  - builds the complete release twice and requires byte-identical output
+  - renders chart only in temporary workspace for static inventories
+  - persists no generated install-time Secret values
   - resolves each static image to an immutable registry manifest digest
-  - emits release manifest + images.lock.json + SHA256SUMS
+  - emits release manifest + dependency lock + images.lock.json + SHA256SUMS
         |
         v
 controlled air-gap transfer
@@ -47,6 +50,44 @@ HelmRelease ./packages/openeverest-1.16.2.tgz
 LayerSentry DBaaS runtime
 ```
 
+## Reproducible Helm release engineering
+
+OpenEverest's pinned chart contains four `file://` subcharts. `helm dependency
+build` packages those local charts using current-time tar metadata, so their raw
+`.tgz` hashes otherwise differ between qualification runs even when source is
+unchanged. LayerSentry canonicalizes only those Helm-generated local archives
+using the qualified upstream commit timestamp. Externally downloaded dependency
+archives are preserved byte-for-byte.
+
+`release/helm-dependency-artifact-lock.json` fixes the SHA-256 identity of all
+eight vendored dependency packages: four canonical local archives and four
+preserved external archives. The final parent chart package is also
+canonicalized after Helm chooses its package file set.
+
+CI then builds the offline release twice and runs:
+
+```text
+scripts/verify-reproducible-release.sh \
+  dist/offline-release dist/offline-release-rebuild
+```
+
+The gate requires byte-identical source trees, provenance, checksum manifests
+and final `openeverest-1.16.2.tgz`. A changed external chart artifact, local
+archive timestamp drift or nondeterministic parent package therefore fails the
+release.
+
+### Generated install-time Secrets are not evidence
+
+The pinned OpenEverest chart intentionally generates a fresh RSA JWT private key
+and random initial admin material during an install-time `helm template` when
+those values are not supplied. That output is valid chart behavior but is both
+nondeterministic and inappropriate to retain as release evidence.
+
+The release builder therefore renders only into a private temporary workspace,
+extracts deterministic image/registry inventories plus a resource-kind summary,
+and destroys the full render. The evidence bundle must not contain
+`provenance/openeverest-rendered.yaml` or generated JWT/admin material.
+
 ## Two distinct commit identities
 
 Do not confuse provenance and runtime transport:
@@ -59,14 +100,14 @@ Do not confuse provenance and runtime transport:
   and is supplied as `LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT`.
 
 Vendoring dependencies changes the Git tree, so claiming that a vendored mirror
-has the original upstream commit SHA would be incorrect. The release manifest
-and SHA-256 chain binds the mirror content back to the upstream provenance.
+has the original upstream commit SHA would be incorrect. The release manifest,
+dependency artifact lock and SHA-256 chain bind the mirror content back to the
+upstream provenance.
 
 ## Container image identity
 
 The rendered chart includes image tags that are convenient for upstream release
-management but are mutable registry references. Connected qualification CI must
-therefore run:
+management but are mutable registry references. Connected qualification CI runs:
 
 ```text
 scripts/lock-image-digests.sh dist/offline-release
@@ -86,7 +127,14 @@ scripts/verify-image-mirror.sh dist/offline-release /secure/path/mirror-map.json
 
 The verifier queries each private mirror reference and requires the same registry
 manifest digest that was qualified from the source. Registry vendor, project
-names and repository paths remain deployment choices.
+names and repository paths remain deployment choices. The selected private
+registry must also prevent promoted release tags from being retargeted.
+
+The pinned upstream OpenEverest templates append release tags internally for
+several images; LayerSentry therefore does not force `repository@digest` into
+fields that would produce invalid `repository@digest:tag` references. During
+live qualification, deployed pod/container `imageID` values must instead be
+checked against `provenance/images.lock.json` so the runtime digest is proven.
 
 ## Package source boundary
 
@@ -98,6 +146,7 @@ these interfaces:
 - exact signed mirror commit;
 - Git auth/CA Secret and signature-verification Secret;
 - private image mirror copies matching the qualified static digest lock;
+- immutable/retained promoted release tags in the private registry;
 - container runtime registry mirrors that cover the release inventory and all
   dynamically advertised DB/operator images;
 - RKE2 `disable-default-registry-endpoint: true` with an explicit mirror entry
@@ -110,8 +159,9 @@ changing the DBaaS lifecycle code.
 
 ## Secrets
 
-Never commit Git passwords/tokens, SSH private keys, registry credentials,
-database credentials, OpenEverest tokens, CA private keys or release private
+Never commit or package Git passwords/tokens, SSH private keys, registry
+credentials, database credentials, OpenEverest tokens, generated install-time JWT
+private keys, generated initial admin material, CA private keys or release private
 signing keys. `GitRepository.spec.secretRef` and `.spec.verify.secretRef` point to
 same-namespace Kubernetes Secrets provisioned through the authorized secret
 management process.
@@ -120,11 +170,12 @@ management process.
 
 The offline workflow produces a bundle containing:
 
-- `source/charts/everest/` with locked dependencies vendored;
-- `packages/openeverest-1.16.2.tgz`;
+- `source/charts/everest/` with dependency artifacts vendored and locked;
+- `packages/openeverest-1.16.2.tgz` as a canonical archive;
+- `provenance/helm-dependency-artifact-lock.json`;
 - `provenance/offline-release-spec.json`;
 - upstream repository/commit and tool versions;
-- rendered OpenEverest manifest used for static inventory;
+- deterministic `rendered-resource-kinds.txt` summary (not a Secret-bearing full render);
 - `images.required.txt`, `images.lock.json` and `registries.required.txt`;
 - Docker Buildx version used for digest resolution;
 - `release-manifest.json`;
@@ -138,6 +189,7 @@ qualification.
 
 ## Runtime qualification
 
-A green bundle/build pipeline is source/CI evidence only. Real DB provisioning,
-persistent CSI I/O, pod/node failure, backup, restore, PITR, upgrades, deletion
-protection and offline dependency behavior remain separate live exit gates.
+A green reproducible bundle/build pipeline is source/CI evidence only. Real DB
+provisioning, persistent CSI I/O, running `imageID` digest checks, pod/node
+failure, backup, restore, PITR, upgrades, deletion protection and offline
+dependency behavior remain separate live exit gates.

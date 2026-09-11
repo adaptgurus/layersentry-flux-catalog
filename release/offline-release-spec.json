@@ -7,7 +7,8 @@
     "chart": "openeverest",
     "chartVersion": "1.16.2",
     "appVersion": "1.16.2",
-    "chartLockDigest": "sha256:6364a744f4542c24d2bac0487e7f6749a8b065e461b6358937999a59d06f7f84"
+    "chartLockDigest": "sha256:6364a744f4542c24d2bac0487e7f6749a8b065e461b6358937999a59d06f7f84",
+    "dependencyArtifactLock": "release/helm-dependency-artifact-lock.json"
   },
   "runtimeSource": {
     "type": "signed-private-git",
@@ -28,12 +29,23 @@
       "OpenEverest version-metadata database engine and backup images"
     ]
   },
+  "releaseEngineering": {
+    "dependencyArtifactDigestsRequired": true,
+    "canonicalLocalDependencyArchivesRequired": true,
+    "canonicalParentChartArchiveRequired": true,
+    "twoBuildReproducibilityRequired": true,
+    "sourceDateEpochFromUpstreamCommit": true,
+    "generatedSecretRenderExcludedRequired": true,
+    "deterministicRenderSummary": "provenance/rendered-resource-kinds.txt"
+  },
   "productionPolicy": {
     "secretsInGit": false,
+    "generatedInstallSecretEvidenceForbidden": true,
     "immutableLayerSentryAPIImageRequired": true,
     "staticImageDigestsLockedRequired": true,
     "signedMirrorCommitRequired": true,
     "vendoredHelmDependenciesRequired": true,
+    "reproducibleOfflineReleaseRequired": true,
     "liveAirGapQualificationRequired": true
   }
 }

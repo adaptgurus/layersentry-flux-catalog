@@ -21,7 +21,7 @@ The DBaaS deployment uses Flux `GitRepository` + `HelmRelease` with:
 - exact, signed private mirror commit;
 - private Git authentication/CA Secret;
 - release-signature verification Secret;
-- pre-packaged chart with vendored locked Helm dependencies so runtime does not fetch public Helm repos;
+- canonical pre-packaged chart with vendored locked Helm dependencies so runtime does not fetch public Helm repos;
 - mandatory internal OpenEverest version metadata URL;
 - real site-selected CSI state storage and backup storage;
 - TLS/RBAC;
@@ -31,12 +31,22 @@ The DBaaS deployment uses Flux `GitRepository` + `HelmRelease` with:
 - data-preserving `prune: false`;
 - single-writer persistent LayerSentry DBaaS API state.
 
-The connected CI release builder emits the vendored chart, packaged chart,
-static image/registry inventory, **immutable registry manifest digest lock**,
-provenance manifest and SHA-256 checksums. `scripts/verify-image-mirror.sh`
-compares the imported private-registry copies against that digest lock after the
-site chooses its registry layout. This prevents a mutable upstream tag from
-silently changing the qualified release identity.
+The connected CI release builder now fixes release identity at three layers:
+
+1. **Helm dependencies:** all eight vendored dependency archives have expected
+   SHA-256 values. Helm-generated `file://` dependency packages are canonicalized
+   to remove wall-clock archive metadata while downloaded external archives are
+   preserved byte-for-byte.
+2. **Release package:** the final `openeverest-1.16.2.tgz` is canonicalized and
+   CI builds the complete release twice, requiring byte-identical source,
+   provenance, checksum manifest and parent package.
+3. **Container images:** statically rendered images are resolved to immutable
+   registry manifest digests in `provenance/images.lock.json`.
+
+`scripts/verify-image-mirror.sh` compares imported private-registry copies against
+the qualified image lock after the site chooses its registry layout. The private
+registry must keep promoted release tags immutable; live qualification also
+checks running container `imageID` digests against the lock.
 
 The final private Git/registry products and physical transfer method remain site
 choices and are deliberately not hard-coded.
@@ -46,14 +56,16 @@ See:
 - `docs/OFFLINE_GITOPS_WORKFLOW.md`
 - `docs/PRODUCTION_READINESS.md`
 - `examples/e1-site-config.yaml`
+- `examples/image-mirror-map.example.json`
 - `release/offline-release-spec.json`
+- `release/helm-dependency-artifact-lock.json`
 
 ## Air-gap qualification boundary
 
 OpenEverest's current versioned support documentation still states that fully
 air-gapped environments are not generally supported, while current product
 material also describes air-gapped/self-hosted deployments. LayerSentry treats
-that inconsistency as an explicit qualification boundary: source/CI can prove the
-package, image digests and GitOps contract; live production acceptance still
-requires real offline database, CSI, backup/restore/PITR and failure-recovery
-testing.
+that inconsistency as an explicit qualification boundary: source/CI can prove a
+reproducible package, dependency artifacts, image digests and GitOps contract;
+live production acceptance still requires real offline database, CSI,
+backup/restore/PITR and failure-recovery testing.
