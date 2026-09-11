@@ -1,12 +1,18 @@
-name: Validate offline DBaaS GitOps contract
+name: Validate offline DBaaS GitOps release
 
 on:
   pull_request:
     paths:
       - 'apps/data-services/**'
       - 'clusters/e1/**'
+      - 'release/**'
+      - 'scripts/build-offline-release.sh'
+      - 'scripts/verify-offline-release.sh'
+      - 'scripts/create-offline-git-source.sh'
       - 'scripts/verify-offline-gitops.sh'
       - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
+      - 'docs/PRODUCTION_READINESS.md'
+      - 'examples/e1-site-config.yaml'
       - '.github/workflows/offline-gitops.yml'
   push:
     branches:
@@ -14,8 +20,14 @@ on:
     paths:
       - 'apps/data-services/**'
       - 'clusters/e1/**'
+      - 'release/**'
+      - 'scripts/build-offline-release.sh'
+      - 'scripts/verify-offline-release.sh'
+      - 'scripts/create-offline-git-source.sh'
       - 'scripts/verify-offline-gitops.sh'
       - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
+      - 'docs/PRODUCTION_READINESS.md'
+      - 'examples/e1-site-config.yaml'
       - '.github/workflows/offline-gitops.yml'
   workflow_dispatch:
 
@@ -23,46 +35,45 @@ permissions:
   contents: read
 
 jobs:
-  validate-offline-contract:
+  validate-contract:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    env:
-      CATALOG_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: ${{ env.CATALOG_COMMIT }}
-
-      - name: Verify fail-closed offline Flux runtime contract
+      - name: Verify production offline Flux contract
         shell: bash
         run: bash scripts/verify-offline-gitops.sh
 
-      - name: Build deterministic GitOps handoff bundle
+  build-offline-release:
+    needs: validate-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build qualified self-contained offline release
+        shell: bash
+        run: bash scripts/build-offline-release.sh dist/offline-release
+      - name: Verify release without Helm repository configuration
+        shell: bash
+        run: bash scripts/verify-offline-release.sh dist/offline-release
+      - name: Bind bundle to exact catalog source head
         shell: bash
         run: |
           set -euo pipefail
-          out="dist/offline-gitops"
-          mkdir -p "$out"
-          kubectl kustomize apps/data-services > "$out/data-services.yaml"
-          cp clusters/e1/data-services.yaml "$out/cluster-data-services-kustomization.yaml"
-          cp upstream-artifact-lock.json "$out/upstream-artifact-lock.json"
-          cp docs/OFFLINE_GITOPS_WORKFLOW.md "$out/OFFLINE_GITOPS_WORKFLOW.md"
-          printf '%s\n' "$CATALOG_COMMIT" > "$out/catalog-commit.txt"
+          printf '%s\n' "$SOURCE_SHA" > dist/offline-release/catalog-commit.txt
           (
-            cd "$out"
-            sha256sum \
-              data-services.yaml \
-              cluster-data-services-kustomization.yaml \
-              upstream-artifact-lock.json \
-              OFFLINE_GITOPS_WORKFLOW.md \
-              catalog-commit.txt \
-              > SHA256SUMS
+            cd dist/offline-release
+            sha256sum catalog-commit.txt >> SHA256SUMS
           )
-
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: layersentry-dbaas-offline-gitops-${{ env.CATALOG_COMMIT }}
-          path: dist/offline-gitops/
+          name: layersentry-dbaas-offline-release-${{ env.SOURCE_SHA }}
+          path: dist/offline-release/
           if-no-files-found: error
           retention-days: 30
