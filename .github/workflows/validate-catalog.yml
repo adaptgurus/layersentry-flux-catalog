@@ -40,6 +40,7 @@ jobs:
             -o "$image_key"
 
           expected_chart="sha256:15c0b46d9006ce8eb9ff14d1bf54d1bbfcc587bb9e24cd9fe186fb8fec56af1f"
+          chart_ref="oci://quay.io/jetstack/charts/cert-manager@${expected_chart}"
           output="$(helm pull oci://quay.io/jetstack/charts/cert-manager \
             --version v1.21.1 --verify --keyring "$keyring" --destination "$tmp" 2>&1)"
           printf '%s\n' "$output"
@@ -68,7 +69,21 @@ jobs:
               print(f'--set={key}={values[key]}')
           PY
           mapfile -t digest_values < "$tmp/digest-values.txt"
-          helm template cert-manager "oci://quay.io/jetstack/charts/cert-manager@${expected_chart}" \
+
+          # Validate the same immutable/provenance install shape used by the
+          # production adapter, without contacting a Kubernetes API server.
+          helm install cert-manager "$chart_ref" \
+            --namespace cert-manager \
+            --create-namespace \
+            --verify \
+            --keyring "$keyring" \
+            --description layersentry-op:0123456789abcdef0123456789abcdef \
+            --timeout 10m \
+            --wait \
+            --dry-run=client \
+            "${digest_values[@]}" > "$tmp/runtime-install.txt"
+
+          helm template cert-manager "$chart_ref" \
             --namespace cert-manager \
             --set=crds.enabled=true \
             --set=crds.keep=true \
@@ -76,4 +91,5 @@ jobs:
           while IFS= read -r image; do
             digest="${image##*@}"
             grep -F -- "$digest" "$tmp/rendered.yaml" >/dev/null
+            grep -F -- "$digest" "$tmp/runtime-install.txt" >/dev/null
           done < "$tmp/images.txt"
