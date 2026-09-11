@@ -26,4 +26,7 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: ${CLUSTER_NAME}-site-config
-        optional: true
+        # DBaaS has mandatory production inputs (issuer, image, persistent
+        # storage, backup storage). Missing site configuration must fail the
+        # reconciliation instead of being treated as an empty variable set.
+        optional: false
