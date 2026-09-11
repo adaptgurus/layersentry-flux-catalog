@@ -21,12 +21,11 @@ spec:
       name: ${CLUSTER_NAME}-kubeconfig
       key: value
   postBuild:
-    substitute:
-      LAYERSENTRY_OPENEVEREST_HELM_GIT_URL: https://github.com/openeverest/helm-charts.git
     substituteFrom:
       - kind: ConfigMap
         name: ${CLUSTER_NAME}-site-config
-        # DBaaS has mandatory production inputs (issuer, image, persistent
-        # storage, backup storage). Missing site configuration must fail the
-        # reconciliation instead of being treated as an empty variable set.
+        # DBaaS production inputs are mandatory. For offline environments this
+        # ConfigMap also supplies LAYERSENTRY_OPENEVEREST_HELM_GIT_URL. Missing
+        # configuration must stop reconciliation rather than fall back to an
+        # Internet source.
         optional: false

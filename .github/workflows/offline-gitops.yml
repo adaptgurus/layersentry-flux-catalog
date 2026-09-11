@@ -1,0 +1,65 @@
+name: Validate offline DBaaS GitOps contract
+
+on:
+  pull_request:
+    paths:
+      - 'apps/data-services/**'
+      - 'clusters/e1/**'
+      - 'scripts/verify-offline-gitops.sh'
+      - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
+      - '.github/workflows/offline-gitops.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/data-services/**'
+      - 'clusters/e1/**'
+      - 'scripts/verify-offline-gitops.sh'
+      - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
+      - '.github/workflows/offline-gitops.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-offline-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Verify fail-closed offline Flux runtime contract
+        shell: bash
+        run: bash scripts/verify-offline-gitops.sh
+
+      - name: Build deterministic GitOps handoff bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="dist/offline-gitops"
+          mkdir -p "$out"
+          kubectl kustomize apps/data-services > "$out/data-services.yaml"
+          cp clusters/e1/data-services.yaml "$out/cluster-data-services-kustomization.yaml"
+          cp upstream-artifact-lock.json "$out/upstream-artifact-lock.json"
+          cp docs/OFFLINE_GITOPS_WORKFLOW.md "$out/OFFLINE_GITOPS_WORKFLOW.md"
+          printf '%s\n' "${GITHUB_SHA}" > "$out/catalog-commit.txt"
+          (
+            cd "$out"
+            sha256sum \
+              data-services.yaml \
+              cluster-data-services-kustomization.yaml \
+              upstream-artifact-lock.json \
+              OFFLINE_GITOPS_WORKFLOW.md \
+              catalog-commit.txt \
+              > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: layersentry-dbaas-offline-gitops-${{ github.sha }}
+          path: dist/offline-gitops/
+          if-no-files-found: error
+          retention-days: 30

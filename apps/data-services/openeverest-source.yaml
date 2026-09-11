@@ -8,6 +8,9 @@ metadata:
 spec:
   interval: 30m
   timeout: 2m
-  url: ${LAYERSENTRY_OPENEVEREST_HELM_GIT_URL:=https://github.com/openeverest/helm-charts.git}
+  # Runtime is intentionally fail-closed for air-gapped/private deployments.
+  # The site ConfigMap must provide an offline-accessible mirror URL. CI keeps
+  # the upstream provenance pin separate from this runtime transport.
+  url: ${LAYERSENTRY_OPENEVEREST_HELM_GIT_URL}
   ref:
     commit: 568186ace62846557e29841edad76c08f8b913a4

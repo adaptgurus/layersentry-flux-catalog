@@ -29,3 +29,16 @@ CSI uses the pinned upstream 3.0.2 deployment/RBAC/CRD files with only its image
 references replaced. CCM likewise retains its pinned upstream deployment/RBAC.
 Neither the CSI snapshot CRDs nor available sidecars imply snapshot/PITR
 qualification. The optional storage-class syncer is deliberately not deployed.
+
+## DBaaS offline GitOps contract
+
+The DBaaS runtime path is fail-closed for offline/private deployment. The
+reconciled OpenEverest Flux source has no public URL default; the mandatory
+cluster site ConfigMap must provide `LAYERSENTRY_OPENEVEREST_HELM_GIT_URL`.
+Public upstream access is limited to CI provenance qualification and is not a
+runtime dependency.
+
+The package ingestion/mirror technology is intentionally not selected yet.
+See `docs/OFFLINE_GITOPS_WORKFLOW.md` for the Flux workflow, required site
+inputs, handoff artifact and the boundary that will be completed after the
+offline package source is chosen.

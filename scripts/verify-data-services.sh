@@ -21,6 +21,7 @@ actual="$(git ls-remote "$OPENEVEREST_REPO" | awk -v sha="$OPENEVEREST_COMMIT" '
 [[ "$actual" == "$OPENEVEREST_COMMIT" ]] || fail "OpenEverest pinned commit is not reachable: $OPENEVEREST_COMMIT"
 
 require_pattern "commit: $OPENEVEREST_COMMIT" apps/data-services/openeverest-source.yaml "OpenEverest GitRepository commit pin is missing"
+require_pattern '^  url: \$\{LAYERSENTRY_OPENEVEREST_HELM_GIT_URL\}$' apps/data-services/openeverest-source.yaml "OpenEverest runtime source must be supplied by site configuration"
 require_pattern '^  rbac:$' apps/data-services/openeverest-values.yaml "OpenEverest server RBAC block is missing"
 require_pattern '^    enabled: true$' apps/data-services/openeverest-values.yaml "OpenEverest server RBAC is not explicitly enabled"
 require_pattern '^  namespaceOverride: layersentry-dbaas$' apps/data-services/openeverest-values.yaml "OpenEverest DB namespace override is not layersentry-dbaas"
