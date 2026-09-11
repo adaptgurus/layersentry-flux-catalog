@@ -33,7 +33,7 @@
       "category": "certificates",
       "qualification": "PARTIAL",
       "productionSelectable": false,
-      "qualificationNote": "Catalog metadata, admission/lifecycle source and tests are implemented; production selection remains blocked until CI verifies the pinned OCI/chart/image provenance and the exact RKE2 target passes live install, failure/reconcile, duplicate and safe-uninstall evidence.",
+      "qualificationNote": "Catalog metadata, admission/lifecycle source and tests are implemented; pinned OCI/chart/image provenance is CI verified, while production selection remains blocked until the exact RKE2 target passes live install, failure/reconcile, duplicate and safe-uninstall evidence.",
       "supportedVersions": [
         {
           "version": "v1.21.1",
@@ -64,7 +64,7 @@
               "keyFingerprint": "1020CF3C033D4F35BAE1C19E1226061C665DF13E",
               "keyringURL": "https://cert-manager.io/public-keys/cert-manager-keyring-2021-09-20-1020CF3C033D4F35BAE1C19E1226061C665DF13E.gpg"
             },
-            "verificationStatus": "PENDING_CI_PROVENANCE_AND_REGISTRY_DIGEST"
+            "verificationStatus": "CI_VERIFIED_PGP_AND_REGISTRY_DIGEST"
           },
           "upstreamRelease": {
             "repository": "cert-manager/cert-manager",
@@ -223,7 +223,7 @@
         "chart": {
           "immutableRef": "oci://quay.io/jetstack/charts/cert-manager@sha256:15c0b46d9006ce8eb9ff14d1bf54d1bbfcc587bb9e24cd9fe186fb8fec56af1f",
           "verifyBeforeMirror": true,
-          "verificationStatus": "PENDING_CI_PROVENANCE_AND_REGISTRY_DIGEST"
+          "verificationStatus": "CI_VERIFIED_PGP_AND_REGISTRY_DIGEST"
         },
         "releaseAssets": [
           {
@@ -243,35 +243,35 @@
             "tag": "v1.21.1",
             "digest": "sha256:416a2d76870d996460e62bd7f521bf14fa017be9e3e904aab92163a331fcb61a",
             "immutableRef": "quay.io/jetstack/cert-manager-controller@sha256:416a2d76870d996460e62bd7f521bf14fa017be9e3e904aab92163a331fcb61a",
-            "verificationStatus": "PENDING_CI_COSIGN"
+            "verificationStatus": "CI_VERIFIED_COSIGN"
           },
           {
             "repository": "quay.io/jetstack/cert-manager-webhook",
             "tag": "v1.21.1",
             "digest": "sha256:d8b3961b51c8c7320633f8208dc46bf88aa13804d0f7cbe48a096b2c523cee42",
             "immutableRef": "quay.io/jetstack/cert-manager-webhook@sha256:d8b3961b51c8c7320633f8208dc46bf88aa13804d0f7cbe48a096b2c523cee42",
-            "verificationStatus": "PENDING_CI_COSIGN"
+            "verificationStatus": "CI_VERIFIED_COSIGN"
           },
           {
             "repository": "quay.io/jetstack/cert-manager-cainjector",
             "tag": "v1.21.1",
             "digest": "sha256:ccf6b919ec0500745a47a910118f834f9636d0aac1ff221245cd2557ed8c7c98",
             "immutableRef": "quay.io/jetstack/cert-manager-cainjector@sha256:ccf6b919ec0500745a47a910118f834f9636d0aac1ff221245cd2557ed8c7c98",
-            "verificationStatus": "PENDING_CI_COSIGN"
+            "verificationStatus": "CI_VERIFIED_COSIGN"
           },
           {
             "repository": "quay.io/jetstack/cert-manager-acmesolver",
             "tag": "v1.21.1",
             "digest": "sha256:dbc7cc1354f603918e7c5af7f55a0a620537394452c93a565bde75c6f48e8837",
             "immutableRef": "quay.io/jetstack/cert-manager-acmesolver@sha256:dbc7cc1354f603918e7c5af7f55a0a620537394452c93a565bde75c6f48e8837",
-            "verificationStatus": "PENDING_CI_COSIGN"
+            "verificationStatus": "CI_VERIFIED_COSIGN"
           },
           {
             "repository": "quay.io/jetstack/cert-manager-startupapicheck",
             "tag": "v1.21.1",
             "digest": "sha256:d8ab6416e6e7303a86fa0a8daa82c94a8001f21c9d78eb2e7db20534e5d07ae8",
             "immutableRef": "quay.io/jetstack/cert-manager-startupapicheck@sha256:d8ab6416e6e7303a86fa0a8daa82c94a8001f21c9d78eb2e7db20534e5d07ae8",
-            "verificationStatus": "PENDING_CI_COSIGN"
+            "verificationStatus": "CI_VERIFIED_COSIGN"
           }
         ],
         "imagePromotionRule": "Resolve each tag to an immutable digest, verify the upstream cosign signature, then mirror by digest before offline promotion."
