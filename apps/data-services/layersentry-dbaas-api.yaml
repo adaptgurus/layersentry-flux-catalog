@@ -1,0 +1,172 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: layersentry-dbaas-api
+  namespace: everest-system
+  labels:
+    app.kubernetes.io/name: layersentry-dbaas-api
+    app.kubernetes.io/part-of: layersentry-dbaas
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: layersentry-dbaas-api-state
+  namespace: everest-system
+  labels:
+    app.kubernetes.io/name: layersentry-dbaas-api
+    app.kubernetes.io/part-of: layersentry-dbaas
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ${LAYERSENTRY_DBAAS_STATE_STORAGE_CLASS}
+  resources:
+    requests:
+      storage: ${LAYERSENTRY_DBAAS_STATE_SIZE:=1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: layersentry-dbaas-api
+  namespace: everest-system
+  labels:
+    app.kubernetes.io/name: layersentry-dbaas-api
+    app.kubernetes.io/part-of: layersentry-dbaas
+spec:
+  # FileStore is an intentionally single-writer durable journal. Do not raise
+  # replicas until a transactional multi-writer store is qualified.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: layersentry-dbaas-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: layersentry-dbaas-api
+        app.kubernetes.io/part-of: layersentry-dbaas
+    spec:
+      serviceAccountName: layersentry-dbaas-api
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          # Release/site configuration MUST substitute an immutable image digest.
+          # Missing substitution intentionally leaves this workload unready.
+          image: ${LAYERSENTRY_DBAAS_API_IMAGE}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+          env:
+            - name: LISTEN_ADDR
+              value: :8443
+            - name: LAYERSENTRY_STATE_DIR
+              value: /var/lib/layersentry-dbaas
+            - name: LAYERSENTRY_API_TOKEN_FILE
+              value: /run/layersentry/secrets/api-token
+            - name: LAYERSENTRY_TLS_CERT_FILE
+              value: /run/layersentry/secrets/tls.crt
+            - name: LAYERSENTRY_TLS_KEY_FILE
+              value: /run/layersentry/secrets/tls.key
+            - name: LAYERSENTRY_DB_VERSION_CATALOG_FILE
+              value: /etc/layersentry/catalog/catalog.json
+            - name: OPENEVEREST_URL
+              value: https://everest.everest-system.svc:443
+            - name: OPENEVEREST_DATABASE_NAMESPACE
+              value: layersentry-dbaas
+            - name: OPENEVEREST_BACKUP_STORAGE
+              value: ${LAYERSENTRY_DBAAS_BACKUP_STORAGE}
+            - name: OPENEVEREST_DEFAULT_CPU
+              value: ${LAYERSENTRY_DBAAS_DEFAULT_CPU:=1}
+            - name: OPENEVEREST_DEFAULT_MEMORY
+              value: ${LAYERSENTRY_DBAAS_DEFAULT_MEMORY:=1Gi}
+            - name: OPENEVEREST_TOKEN_FILE
+              value: /run/layersentry/secrets/openeverest-token
+            - name: OPENEVEREST_CA_FILE
+              value: /run/layersentry/secrets/openeverest-ca.crt
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/layersentry-dbaas
+            - name: runtime-secrets
+              mountPath: /run/layersentry/secrets
+              readOnly: true
+            - name: qualified-catalog
+              mountPath: /etc/layersentry/catalog
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /healthz
+              port: https
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /healthz
+              port: https
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /healthz
+              port: https
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: state
+          persistentVolumeClaim:
+            claimName: layersentry-dbaas-api-state
+        - name: runtime-secrets
+          secret:
+            secretName: layersentry-dbaas-runtime
+            defaultMode: 0400
+        - name: qualified-catalog
+          configMap:
+            name: layersentry-dbaas-qualified-catalog
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: layersentry-dbaas-api
+  namespace: everest-system
+  labels:
+    app.kubernetes.io/name: layersentry-dbaas-api
+    app.kubernetes.io/part-of: layersentry-dbaas
+spec:
+  # Keep the product API private by default. FireEdge reaches an explicitly
+  # approved management path configured per OneKS cluster.
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: layersentry-dbaas-api
+  ports:
+    - name: https
+      port: 8443
+      targetPort: https
+      protocol: TCP
