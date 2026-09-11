@@ -25,7 +25,19 @@ require_pattern '^  rbac:$' apps/data-services/openeverest-values.yaml "OpenEver
 require_pattern '^    enabled: true$' apps/data-services/openeverest-values.yaml "OpenEverest server RBAC is not explicitly enabled"
 require_pattern '^  namespaceOverride: layersentry-dbaas$' apps/data-services/openeverest-values.yaml "OpenEverest DB namespace override is not layersentry-dbaas"
 require_pattern '^  tls:$' apps/data-services/openeverest-values.yaml "OpenEverest server TLS block is missing"
+require_pattern '^        name: \$\{LAYERSENTRY_DBAAS_CERT_ISSUER_NAME\}$' apps/data-services/openeverest-values.yaml "OpenEverest TLS must use the site-provided cert-manager issuer"
 require_pattern '^  prune: false$' clusters/e1/data-services.yaml "data-services Flux Kustomization must preserve stateful resources"
+require_pattern '^        optional: false$' clusters/e1/data-services.yaml "data-services site configuration must be mandatory"
+
+# Keep production-only inputs explicit. The site ConfigMap supplies these at
+# reconciliation time; CI verifies that source does not grow unsafe defaults.
+require_pattern '^          image: \$\{LAYERSENTRY_DBAAS_API_IMAGE\}$' apps/data-services/layersentry-dbaas-api.yaml "LayerSentry DBaaS API image must be supplied by release/site configuration"
+require_pattern '^  storageClassName: \$\{LAYERSENTRY_DBAAS_STATE_STORAGE_CLASS\}$' apps/data-services/layersentry-dbaas-api.yaml "DBaaS state storage class must be site-qualified"
+require_pattern '^              value: \$\{LAYERSENTRY_DBAAS_BACKUP_STORAGE\}$' apps/data-services/layersentry-dbaas-api.yaml "DBaaS backup storage must be site-qualified"
+require_pattern '^    replicas: 1$' apps/data-services/layersentry-dbaas-api.yaml "FileStore DBaaS API must remain single-writer"
+require_pattern '^    type: Recreate$' apps/data-services/layersentry-dbaas-api.yaml "FileStore DBaaS API must use Recreate strategy"
+require_pattern '^              value: /run/layersentry/auth/openeverest-ca\.crt$' apps/data-services/layersentry-dbaas-api.yaml "OpenEverest trusted CA file must be configured"
+require_pattern '^    name: \$\{LAYERSENTRY_DBAAS_CERT_ISSUER_NAME\}$' apps/data-services/layersentry-dbaas-api.yaml "LayerSentry API TLS must use the site-provided cert-manager issuer"
 
 rendered="$(mktemp)"
 chartdir="$(mktemp -d)"
