@@ -17,7 +17,8 @@ connected qualification CI
   - verifies all 8 dependency archive SHA-256 values
   - canonicalizes the final parent chart package
   - builds the complete release twice and requires byte-identical output
-  - renders chart and inventories static images/registries
+  - renders chart only in temporary workspace for static inventories
+  - persists no generated install-time Secret values
   - resolves each static image to an immutable registry manifest digest
   - emits release manifest + dependency lock + images.lock.json + SHA256SUMS
         |
@@ -74,6 +75,18 @@ The gate requires byte-identical source trees, provenance, checksum manifests
 and final `openeverest-1.16.2.tgz`. A changed external chart artifact, local
 archive timestamp drift or nondeterministic parent package therefore fails the
 release.
+
+### Generated install-time Secrets are not evidence
+
+The pinned OpenEverest chart intentionally generates a fresh RSA JWT private key
+and random initial admin material during an install-time `helm template` when
+those values are not supplied. That output is valid chart behavior but is both
+nondeterministic and inappropriate to retain as release evidence.
+
+The release builder therefore renders only into a private temporary workspace,
+extracts deterministic image/registry inventories plus a resource-kind summary,
+and destroys the full render. The evidence bundle must not contain
+`provenance/openeverest-rendered.yaml` or generated JWT/admin material.
 
 ## Two distinct commit identities
 
@@ -146,8 +159,9 @@ changing the DBaaS lifecycle code.
 
 ## Secrets
 
-Never commit Git passwords/tokens, SSH private keys, registry credentials,
-database credentials, OpenEverest tokens, CA private keys or release private
+Never commit or package Git passwords/tokens, SSH private keys, registry
+credentials, database credentials, OpenEverest tokens, generated install-time JWT
+private keys, generated initial admin material, CA private keys or release private
 signing keys. `GitRepository.spec.secretRef` and `.spec.verify.secretRef` point to
 same-namespace Kubernetes Secrets provisioned through the authorized secret
 management process.
@@ -161,7 +175,7 @@ The offline workflow produces a bundle containing:
 - `provenance/helm-dependency-artifact-lock.json`;
 - `provenance/offline-release-spec.json`;
 - upstream repository/commit and tool versions;
-- rendered OpenEverest manifest used for static inventory;
+- deterministic `rendered-resource-kinds.txt` summary (not a Secret-bearing full render);
 - `images.required.txt`, `images.lock.json` and `registries.required.txt`;
 - Docker Buildx version used for digest resolution;
 - `release-manifest.json`;
