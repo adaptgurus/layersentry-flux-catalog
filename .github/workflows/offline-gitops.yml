@@ -1,0 +1,84 @@
+name: Validate offline DBaaS GitOps release
+
+on:
+  pull_request:
+    paths:
+      - 'apps/data-services/**'
+      - 'clusters/e1/**'
+      - 'release/**'
+      - 'scripts/build-offline-release.sh'
+      - 'scripts/verify-offline-release.sh'
+      - 'scripts/create-offline-git-source.sh'
+      - 'scripts/verify-offline-gitops.sh'
+      - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
+      - 'docs/PRODUCTION_READINESS.md'
+      - 'examples/e1-site-config.yaml'
+      - '.github/workflows/offline-gitops.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/data-services/**'
+      - 'clusters/e1/**'
+      - 'release/**'
+      - 'scripts/build-offline-release.sh'
+      - 'scripts/verify-offline-release.sh'
+      - 'scripts/create-offline-git-source.sh'
+      - 'scripts/verify-offline-gitops.sh'
+      - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
+      - 'docs/PRODUCTION_READINESS.md'
+      - 'examples/e1-site-config.yaml'
+      - '.github/workflows/offline-gitops.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify production offline Flux contract
+        shell: bash
+        run: bash scripts/verify-offline-gitops.sh
+
+  build-offline-release:
+    needs: validate-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install upstream-qualified Helm toolchain
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+        with:
+          version: v3.14.0
+      - name: Build qualified self-contained offline release
+        shell: bash
+        run: bash scripts/build-offline-release.sh dist/offline-release
+      - name: Verify release without Helm repository configuration
+        shell: bash
+        run: bash scripts/verify-offline-release.sh dist/offline-release
+      - name: Bind bundle to exact catalog source head
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$SOURCE_SHA" > dist/offline-release/catalog-commit.txt
+          (
+            cd dist/offline-release
+            sha256sum catalog-commit.txt >> SHA256SUMS
+          )
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: layersentry-dbaas-offline-release-${{ env.SOURCE_SHA }}
+          path: dist/offline-release/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30

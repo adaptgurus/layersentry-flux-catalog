@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "component": "layersentry-dbaas-openeverest",
+  "qualifiedUpstream": {
+    "repository": "https://github.com/openeverest/helm-charts.git",
+    "commit": "568186ace62846557e29841edad76c08f8b913a4",
+    "chart": "openeverest",
+    "chartVersion": "1.16.2",
+    "appVersion": "1.16.2",
+    "chartLockDigest": "sha256:6364a744f4542c24d2bac0487e7f6749a8b065e461b6358937999a59d06f7f84"
+  },
+  "runtimeSource": {
+    "type": "signed-private-git",
+    "urlVariable": "LAYERSENTRY_OPENEVEREST_HELM_GIT_URL",
+    "commitVariable": "LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT",
+    "authSecretVariable": "LAYERSENTRY_OPENEVEREST_GIT_AUTH_SECRET",
+    "verificationSecretVariable": "LAYERSENTRY_OPENEVEREST_GIT_VERIFY_SECRET",
+    "chartPath": "./packages/openeverest-1.16.2.tgz"
+  },
+  "offlineDependencies": {
+    "versionMetadataURLVariable": "LAYERSENTRY_OPENEVEREST_VERSION_METADATA_URL",
+    "containerRuntimeRegistryMirrorRequired": true,
+    "disableDefaultRegistryEndpointRequired": true,
+    "dynamicArtifactSources": [
+      "OpenEverest OLM CatalogSource database-operator bundles",
+      "OpenEverest version-metadata database engine and backup images"
+    ]
+  },
+  "productionPolicy": {
+    "secretsInGit": false,
+    "immutableLayerSentryAPIImageRequired": true,
+    "signedMirrorCommitRequired": true,
+    "vendoredHelmDependenciesRequired": true,
+    "liveAirGapQualificationRequired": true
+  }
+}

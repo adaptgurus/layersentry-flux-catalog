@@ -1,13 +1,17 @@
 # Historical CloudStack qualification material
 
-The paths below predate the current OpenNebula/RKE2 LayerSentry architecture and are retained only for provenance/reference:
+The repository still contains CloudStack-era CCM/CSI/CAPC qualification material for provenance and forensic comparison. Those artifacts are not authorities for the current OpenNebula/OneKS/RKE2 architecture and are not selectable entries in the provider-neutral software catalog.
 
-- `clusters/e1/`
-- `workload/`
-- `evidence/`
+The historical paths are:
+
+- `workload/` (legacy CloudStack CCM/CSI manifests)
+- `evidence/ccm.json`
+- `evidence/csi.json`
 - `upstream-artifact-lock.json`
-- `.github/workflows/publish.yml`
+- `.github/workflows/publish.yml` (legacy CloudStack publication workflow; disabled)
 
-They contain CloudStack CCM/CSI/CAPC qualification artifacts. They are **not** supported catalog entries, are **not** production selectable, and are not an authority for current RKE2 lifecycle or plugin compatibility.
+`clusters/e1/workload.yaml` is retained only as a **suspension guard** over the historical `./workload` path. It must remain `spec.suspend: true` so the CloudStack workload cannot be reconciled accidentally.
 
-The historical Flux workload is suspended and the historical publication workflow is disabled to prevent accidental deployment/publication. No current catalog runtime may discover or install software from these paths. Current selection starts only from `catalog/v1/catalog.json`.
+Do not classify the entire `clusters/e1/` directory as historical: `clusters/e1/data-services.yaml` is the current, separately scoped LayerSentry DBaaS GitOps path and remains active.
+
+Current optional RKE2 software selection starts only from `catalog/v1/catalog.json`. No LayerSentry optional-software runtime may discover, adopt, install, or upgrade software from the historical CloudStack paths above.

@@ -1,0 +1,28 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: openeverest-helm
+  namespace: everest-system
+  labels:
+    app.kubernetes.io/part-of: layersentry-dbaas
+spec:
+  interval: 30m
+  timeout: 2m
+  provider: generic
+  # Production runtime consumes only the signed internal mirror generated from
+  # the qualified offline release bundle. There is intentionally no Internet
+  # fallback here.
+  url: ${LAYERSENTRY_OPENEVEREST_HELM_GIT_URL}
+  secretRef:
+    # Same-namespace Secret. For HTTPS it may contain username/password or
+    # bearerToken plus ca.crt; for SSH it contains identity and known_hosts.
+    name: ${LAYERSENTRY_OPENEVEREST_GIT_AUTH_SECRET}
+  ref:
+    # This is the signed *mirror* commit, not the upstream provenance commit.
+    # Upstream identity remains locked in release/offline-release-spec.json.
+    commit: ${LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT}
+  verify:
+    mode: HEAD
+    secretRef:
+      # Contains trusted PGP (*.asc) or SSH (*.sshpub) release-signing keys.
+      name: ${LAYERSENTRY_OPENEVEREST_GIT_VERIFY_SECRET}

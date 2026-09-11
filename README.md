@@ -1,19 +1,45 @@
-# LayerSentry RKE2 software catalog
+# LayerSentry qualification catalog
 
-This repository is the provider-neutral LayerSentry Kubernetes software catalog for RKE2 clusters. The active catalog is `catalog/v1/catalog.json` and is validated by `scripts/validate_catalog.py` plus `.github/workflows/validate-catalog.yml`.
+This repository contains multiple LayerSentry qualification/delivery surfaces. A green CI run proves only the scoped source/artifact contract exercised by that workflow; it is not, by itself, a claim of live production certification.
 
-## Authority and scope
+## Provider-neutral RKE2 software catalog
 
-Central engineering authority is pinned in each catalog revision to `adaptgurus/codexagentlogic`. Catalog membership is not production certification. An entry is selectable in production only after its exact RKE2/Kubernetes/plugin tuple and immutable artifacts have the required live evidence.
+Current optional RKE2 software selection starts only from `catalog/v1/catalog.json` and is consumed through the LayerSentry server-side admission/lifecycle implementation. The first bounded source-qualified target is cert-manager v1.21.2. It remains `PARTIAL` and `productionSelectable=false` until the exact live RKE2 lifecycle gate passes.
 
-Optional customer software is install-only. LayerSentry may validate prerequisites, install the pinned chart, observe authoritative Helm/Kubernetes state, report `INSTALLED`, `NEEDS_CUSTOMER_SETUP`, `FAILED`, or `UNKNOWN`, and perform explicitly supported upgrades/uninstalls. LayerSentry does not configure customer Git repositories, pipelines, application resources, enterprise credentials, or product-specific business configuration.
+The optional-software catalog is provider-neutral. It does not install the historical CloudStack CCM/CAPC workload and it does not make Flux mandatory for optional Helm software. GitOps choice remains customer-selected (`none`, `flux`, or `argocd`, maximum one engine for the simple profile).
 
-GitOps choices are exactly `none`, `flux`, or `argocd`, with at most one engine for a simple cluster profile. Direct Helm is the initial owner of catalog releases unless an explicit, qualified ownership transfer is implemented later.
+The legacy `workload/` CloudStack CCM/CSI material is retained only for provenance. `clusters/e1/workload.yaml` is deliberately suspended so those historical manifests cannot be reconciled accidentally. The historical CloudStack publication workflow is also disabled. See `HISTORICAL_CLOUDSTACK.md`.
 
-## First qualified source target
+## LayerSentry DBaaS
 
-The first bounded qualification target is cert-manager `v1.21.1`. It remains `productionSelectable=false` until the exact LayerSentry RKE2 target passes live install, duplicate, failure, retry/reconcile, readiness and safe-uninstall tests. Customer issuer configuration is deliberately not performed, so a healthy installation reports `NEEDS_CUSTOMER_SETUP`.
+Customer-facing name: **LayerSentry DBaaS**. OpenEverest is an implementation detail. The qualified upstream baseline is OpenEverest 1.16.2.
 
-## Historical CloudStack material
+DBaaS is a separate, explicitly scoped GitOps product path. `clusters/e1/data-services.yaml` remains active and is not part of the suspended historical CloudStack workload. The DBaaS deployment uses Flux `GitRepository` + `HelmRelease` with:
 
-The legacy `clusters/e1`, `workload`, `evidence`, `upstream-artifact-lock.json`, and original CAPC publication workflow are preserved only as historical CloudStack qualification evidence. They are not active LayerSentry/OpenNebula catalog content and must not be used to reintroduce the excluded external OpenNebula Kubernetes CCM/L4 add-on. See `HISTORICAL_CLOUDSTACK.md`.
+- exact, signed private mirror commit;
+- private Git authentication/CA Secret;
+- release-signature verification Secret;
+- pre-packaged chart with vendored locked Helm dependencies so runtime does not fetch public Helm repos;
+- mandatory internal OpenEverest version metadata URL;
+- real site-selected CSI state storage and backup storage;
+- TLS/RBAC;
+- CRD `CreateReplace` lifecycle;
+- upgrade rollback/remediation and cleanup-on-failure;
+- drift correction;
+- data-preserving `prune: false`;
+- single-writer persistent LayerSentry DBaaS API state.
+
+The connected CI release builder emits the vendored chart, packaged chart, static image/registry inventory, provenance manifest and SHA-256 checksums. The final private Git/registry products and physical transfer method remain site choices and are deliberately not hard-coded.
+
+See:
+
+- `docs/OFFLINE_GITOPS_WORKFLOW.md`
+- `docs/PRODUCTION_READINESS.md`
+- `examples/e1-site-config.yaml`
+- `release/offline-release-spec.json`
+
+## Air-gap qualification boundary
+
+For optional RKE2 software, LayerSentry requires a digest-addressed hidden chart repository plus a private OCI mirror whose exact image digests are server-verified before offline mutation. The first catalog target remains non-production-selectable until live RKE2 evidence exists.
+
+OpenEverest's current support documentation does not yet generally certify fully air-gapped environments, although recent chart releases include offline upgrade improvements. LayerSentry therefore treats offline DBaaS as a separate explicit integration qualification boundary. Source/CI can prove the package and GitOps contract; live production acceptance still requires real offline database, CSI, backup/restore/PITR and failure-recovery testing.

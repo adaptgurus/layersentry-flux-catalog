@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - openeverest-source.yaml
+  - openeverest-helmrelease.yaml
+  - layersentry-dbaas-api.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: layersentry-openeverest-values
+    namespace: everest-system
+    files:
+      - values.yaml=openeverest-values.yaml
