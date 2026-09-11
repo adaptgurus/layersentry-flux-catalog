@@ -124,7 +124,7 @@ require_pattern '^  url: \$\{LAYERSENTRY_OPENEVEREST_HELM_GIT_URL\}$' "$rendered
   "rendered source lost the offline Git URL variable"
 require_pattern '^    commit: \$\{LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT\}$' "$rendered" \
   "rendered source lost the signed mirror commit variable"
-require_pattern '^versionMetadataURL: \$\{LAYERSENTRY_OPENEVEREST_VERSION_METADATA_URL\}$' "$rendered" \
+require_pattern '^[[:space:]]*versionMetadataURL: \$\{LAYERSENTRY_OPENEVEREST_VERSION_METADATA_URL\}$' "$rendered" \
   "rendered values lost the internal metadata variable"
 
 echo "LayerSentry DBaaS offline GitOps production contract verified"
