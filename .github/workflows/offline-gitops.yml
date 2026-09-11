@@ -14,7 +14,7 @@ on:
       - 'scripts/verify-offline-gitops.sh'
       - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
       - 'docs/PRODUCTION_READINESS.md'
-      - 'examples/e1-site-config.yaml'
+      - 'examples/**'
       - '.github/workflows/offline-gitops.yml'
   push:
     branches:
@@ -31,7 +31,7 @@ on:
       - 'scripts/verify-offline-gitops.sh'
       - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
       - 'docs/PRODUCTION_READINESS.md'
-      - 'examples/e1-site-config.yaml'
+      - 'examples/**'
       - '.github/workflows/offline-gitops.yml'
   workflow_dispatch:
 
