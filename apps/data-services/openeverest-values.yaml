@@ -10,7 +10,14 @@ server:
   tls:
     enabled: true
     certificate:
-      create: false
+      create: true
+      domain: everest.everest-system.svc
+      additionalHosts:
+        - everest.everest-system.svc.cluster.local
+      issuer:
+        group: ${LAYERSENTRY_DBAAS_CERT_ISSUER_GROUP:=cert-manager.io}
+        kind: ${LAYERSENTRY_DBAAS_CERT_ISSUER_KIND:=ClusterIssuer}
+        name: ${LAYERSENTRY_DBAAS_CERT_ISSUER_NAME}
     secret:
       name: everest-server-tls
   resources:
