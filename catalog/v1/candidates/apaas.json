@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "candidateSet": "layersentry-p4-apaas-2026-09-11",
+  "authority": {
+    "centralRepository": "adaptgurus/codexagentlogic",
+    "centralCommit": "9e58d78d6bfaaa923d24fb8b4912ae24e43dc0f7",
+    "serviceBoundary": "SOURCE_PREPARATION_ONLY_UNTIL_T6_LIVE_GATE"
+  },
+  "activationPolicy": {
+    "activeCatalogMutationAllowed": false,
+    "reason": "T6 first-chart live milestone and immutable bootstrap OCI mirror must pass before P4 catalog breadth is promoted.",
+    "runtimeInstaller": "DIRECT_HELM_FROM_LAYER_SENTRY_BOOTSTRAP_OCI_MIRROR",
+    "tenantHarborMayBootstrapPlatformArtifacts": false,
+    "productionSelectable": false
+  },
+  "candidates": [
+    {
+      "id": "harbor",
+      "name": "Harbor",
+      "category": "registry",
+      "qualification": "SOURCE_COMPLETE",
+      "productionSelectable": false,
+      "upstream": {
+        "applicationRepository": "https://github.com/goharbor/harbor.git",
+        "applicationVersion": "v2.15.0",
+        "applicationCommit": "e2b5ce92728f86c4b02f6a9a667741c1e5b62678",
+        "chartRepository": "https://github.com/goharbor/harbor-helm.git",
+        "chartVersion": "1.19.2",
+        "chartTag": "v1.19.2",
+        "chartCommit": "f6b4053b73887f81ebd3bc929895f9c19d2d816c",
+        "chartYamlBlob": "6ff11fe9e30041b39494ced9a55edaa8ce5fb68e",
+        "valuesYamlBlob": "d5a5d6220e94fec3b9dcc4600bad38c36ea8978c"
+      },
+      "productionProfile": {
+        "tlsRequired": true,
+        "persistenceRequired": true,
+        "pvcResourcePolicy": "keep",
+        "externalPostgresqlRequiredForHA": true,
+        "externalRedisRequiredForHA": true,
+        "supportedRegistryStorage": ["filesystem", "s3"],
+        "secretValuesInCatalogAllowed": false,
+        "defaultAdminPasswordInCatalogAllowed": false
+      },
+      "requiredCustomerInputs": [
+        "externalURL",
+        "TLS secret reference",
+        "external PostgreSQL endpoint and secret references",
+        "external Redis endpoint and secret references",
+        "registry storage class or qualified S3 bucket/secret references"
+      ],
+      "lifecycleBoundary": {
+        "layerSentryOwns": ["install", "observe", "upgrade admission", "uninstall admission"],
+        "harborOwns": ["projects", "replication", "retention", "robot accounts", "scanner configuration", "registry content"],
+        "bootstrapCircularDependencyAllowed": false
+      },
+      "activationGates": [
+        "T6_CERT_MANAGER_LIVE_VERIFIED",
+        "HARBOR_CHART_MIRRORED_TO_BOOTSTRAP_OCI_BY_DIGEST",
+        "AIR_GAP_IMAGE_CLOSURE_VERIFIED",
+        "RKE2_1_36_LIVE_INSTALL_VERIFIED",
+        "HA_FAILURE_TEST_VERIFIED"
+      ]
+    },
+    {
+      "id": "openbao",
+      "name": "OpenBao",
+      "category": "secrets-management",
+      "qualification": "SOURCE_COMPLETE",
+      "productionSelectable": false,
+      "upstream": {
+        "applicationRepository": "https://github.com/openbao/openbao.git",
+        "applicationVersion": "v2.6.2",
+        "applicationCommit": "dd9c19c37a878cf4a81b18efb8d6f0599c7da923",
+        "chartRepository": "https://github.com/openbao/openbao-helm.git",
+        "chartVersion": "0.29.4",
+        "chartTag": "openbao-0.29.4",
+        "chartCommit": "681a3f7f01637a1641b7d403aa8a468a30bfaafc",
+        "chartArchive": "https://github.com/openbao/openbao-helm/releases/download/openbao-0.29.4/openbao-0.29.4.tgz",
+        "chartArchiveSha256": "d62654eb787b70677d76b864528977277a306ac355c67f2cd8cfc301363119fb"
+      },
+      "productionProfile": {
+        "devModeAllowed": false,
+        "standaloneModeAllowed": false,
+        "haRequired": true,
+        "minimumReplicas": 3,
+        "integratedRaftRequired": true,
+        "persistentStorageRequired": true,
+        "listenerTLSRequired": true,
+        "initializationAutomatedByLayerSentry": false,
+        "unsealKeysInLogsOrBrowserAllowed": false,
+        "rootTokensInLogsOrBrowserAllowed": false
+      },
+      "requiredCustomerInputs": [
+        "persistent storage class",
+        "TLS secret reference",
+        "approved Raft server configuration"
+      ],
+      "lifecycleBoundary": {
+        "layerSentryOwns": ["install", "observe", "upgrade admission", "uninstall admission"],
+        "customerSecurityOwnerOwns": ["initialize", "unseal strategy", "recovery keys", "root token custody", "policies", "auth methods", "secret engines"]
+      },
+      "activationGates": [
+        "T6_CERT_MANAGER_LIVE_VERIFIED",
+        "OPENBAO_CHART_MIRRORED_TO_BOOTSTRAP_OCI_BY_DIGEST",
+        "RKE2_1_36_LIVE_INSTALL_VERIFIED",
+        "RAFT_QUORUM_FAILURE_TEST_VERIFIED",
+        "UNSEAL_KEY_CUSTODY_RUNBOOK_APPROVED"
+      ]
+    }
+  ]
+}
