@@ -13,15 +13,16 @@ require_pattern() {
   local pattern="$1"
   local file="$2"
   local description="$3"
-
   grep -Eq -- "$pattern" "$file" || fail "$description ($file)"
 }
 
 actual="$(git ls-remote "$OPENEVEREST_REPO" | awk -v sha="$OPENEVEREST_COMMIT" '$1==sha {found=$1} END {print found}')"
 [[ "$actual" == "$OPENEVEREST_COMMIT" ]] || fail "OpenEverest pinned commit is not reachable: $OPENEVEREST_COMMIT"
 
-require_pattern "commit: $OPENEVEREST_COMMIT" apps/data-services/openeverest-source.yaml "OpenEverest GitRepository commit pin is missing"
-require_pattern '^  url: \$\{LAYERSENTRY_OPENEVEREST_HELM_GIT_URL\}$' apps/data-services/openeverest-source.yaml "OpenEverest runtime source must be supplied by site configuration"
+require_pattern '^    commit: \$\{LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT\}$' apps/data-services/openeverest-source.yaml \
+  "runtime source must pin the signed offline mirror commit"
+require_pattern '^versionMetadataURL: \$\{LAYERSENTRY_OPENEVEREST_VERSION_METADATA_URL\}$' apps/data-services/openeverest-values.yaml \
+  "OpenEverest version metadata must be site supplied"
 require_pattern '^  rbac:$' apps/data-services/openeverest-values.yaml "OpenEverest server RBAC block is missing"
 require_pattern '^    enabled: true$' apps/data-services/openeverest-values.yaml "OpenEverest server RBAC is not explicitly enabled"
 require_pattern '^  namespaceOverride: layersentry-dbaas$' apps/data-services/openeverest-values.yaml "OpenEverest DB namespace override is not layersentry-dbaas"
@@ -30,8 +31,6 @@ require_pattern '^        name: \$\{LAYERSENTRY_DBAAS_CERT_ISSUER_NAME\}$' apps/
 require_pattern '^  prune: false$' clusters/e1/data-services.yaml "data-services Flux Kustomization must preserve stateful resources"
 require_pattern '^        optional: false$' clusters/e1/data-services.yaml "data-services site configuration must be mandatory"
 
-# Keep production-only inputs explicit. The site ConfigMap supplies these at
-# reconciliation time; CI verifies that source does not grow unsafe defaults.
 require_pattern '^          image: \$\{LAYERSENTRY_DBAAS_API_IMAGE\}$' apps/data-services/layersentry-dbaas-api.yaml "LayerSentry DBaaS API image must be supplied by release/site configuration"
 require_pattern '^  storageClassName: \$\{LAYERSENTRY_DBAAS_STATE_STORAGE_CLASS\}$' apps/data-services/layersentry-dbaas-api.yaml "DBaaS state storage class must be site-qualified"
 require_pattern '^              value: \$\{LAYERSENTRY_DBAAS_BACKUP_STORAGE\}$' apps/data-services/layersentry-dbaas-api.yaml "DBaaS backup storage must be site-qualified"
@@ -40,8 +39,7 @@ require_pattern '^    type: Recreate$' apps/data-services/layersentry-dbaas-api.
 require_pattern '^              value: /run/layersentry/auth/openeverest-ca\.crt$' apps/data-services/layersentry-dbaas-api.yaml "OpenEverest trusted CA file must be configured"
 require_pattern '^    name: \$\{LAYERSENTRY_DBAAS_CERT_ISSUER_NAME\}$' apps/data-services/layersentry-dbaas-api.yaml "LayerSentry API TLS must use the site-provided cert-manager issuer"
 
-# The provider HelmRelease must retain production-safe CRD lifecycle,
-# remediation/rollback, and drift detection rather than merely rendering.
+require_pattern '^      chart: \./packages/openeverest-1\.16\.2\.tgz$' apps/data-services/openeverest-helmrelease.yaml "HelmRelease must use packaged offline chart"
 require_pattern '^    crds: CreateReplace$' apps/data-services/openeverest-helmrelease.yaml "OpenEverest CRDs must use CreateReplace lifecycle"
 require_pattern '^      strategy: rollback$' apps/data-services/openeverest-helmrelease.yaml "OpenEverest upgrade remediation must roll back"
 require_pattern '^    cleanupOnFail: true$' apps/data-services/openeverest-helmrelease.yaml "OpenEverest failed upgrade cleanup is required"
@@ -72,10 +70,6 @@ if command -v helm >/dev/null 2>&1; then
   export HELM_CONFIG_HOME="$helm_config/config"
   export HELM_CACHE_HOME="$helm_config/cache"
   export HELM_DATA_HOME="$helm_config/data"
-
-  # The pinned upstream Chart.lock fixes exact dependency versions, but Helm
-  # still needs repository definitions on a clean runner before it can fetch
-  # those locked artifacts.
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null
   helm repo add victoria-metrics https://victoriametrics.github.io/helm-charts >/dev/null
   helm repo add percona https://percona.github.io/percona-helm-charts >/dev/null
