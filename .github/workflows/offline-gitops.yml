@@ -26,10 +26,13 @@ jobs:
   validate-offline-contract:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      CATALOG_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          ref: ${{ env.CATALOG_COMMIT }}
 
       - name: Verify fail-closed offline Flux runtime contract
         shell: bash
@@ -45,7 +48,7 @@ jobs:
           cp clusters/e1/data-services.yaml "$out/cluster-data-services-kustomization.yaml"
           cp upstream-artifact-lock.json "$out/upstream-artifact-lock.json"
           cp docs/OFFLINE_GITOPS_WORKFLOW.md "$out/OFFLINE_GITOPS_WORKFLOW.md"
-          printf '%s\n' "${GITHUB_SHA}" > "$out/catalog-commit.txt"
+          printf '%s\n' "$CATALOG_COMMIT" > "$out/catalog-commit.txt"
           (
             cd "$out"
             sha256sum \
@@ -59,7 +62,7 @@ jobs:
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: layersentry-dbaas-offline-gitops-${{ github.sha }}
+          name: layersentry-dbaas-offline-gitops-${{ env.CATALOG_COMMIT }}
           path: dist/offline-gitops/
           if-no-files-found: error
           retention-days: 30
