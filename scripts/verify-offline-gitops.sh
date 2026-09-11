@@ -82,6 +82,7 @@ assert s['productionPolicy']['signedMirrorCommitRequired'] is True
 assert s['productionPolicy']['vendoredHelmDependenciesRequired'] is True
 assert s['productionPolicy']['staticImageDigestsLockedRequired'] is True
 assert s['productionPolicy']['reproducibleOfflineReleaseRequired'] is True
+assert s['productionPolicy']['generatedInstallSecretEvidenceForbidden'] is True
 assert s['offlineDependencies']['containerRuntimeRegistryMirrorRequired'] is True
 assert s['offlineDependencies']['disableDefaultRegistryEndpointRequired'] is True
 assert s['offlineDependencies']['staticImageDigestLock'] == 'provenance/images.lock.json'
@@ -91,6 +92,8 @@ assert s['releaseEngineering']['canonicalLocalDependencyArchivesRequired'] is Tr
 assert s['releaseEngineering']['canonicalParentChartArchiveRequired'] is True
 assert s['releaseEngineering']['twoBuildReproducibilityRequired'] is True
 assert s['releaseEngineering']['sourceDateEpochFromUpstreamCommit'] is True
+assert s['releaseEngineering']['generatedSecretRenderExcludedRequired'] is True
+assert s['releaseEngineering']['deterministicRenderSummary'] == 'provenance/rendered-resource-kinds.txt'
 
 example=json.load(open(sys.argv[2]))
 assert example['schemaVersion'] == 1
@@ -164,6 +167,13 @@ require_pattern 'canonicalize_tgz' scripts/build-offline-release.sh \
   "release builder must canonicalize Helm-generated archives"
 require_pattern 'helm-dependency-artifact-lock\.json' scripts/build-offline-release.sh \
   "release builder must enforce the dependency artifact lock"
+require_pattern 'rendered=\"\$work/openeverest-rendered\.yaml\"' scripts/build-offline-release.sh \
+  "full Helm render must remain temporary rather than release evidence"
+if grep -Fq '$OUT/provenance/openeverest-rendered.yaml' scripts/build-offline-release.sh; then
+  fail "release builder must not persist generated-secret Helm render evidence"
+fi
+require_pattern 'generatedSecretRenderExcluded' scripts/verify-reproducible-release.sh \
+  "reproducibility gate must assert generated secret render exclusion"
 require_pattern 'parent Helm package bytes differ' scripts/verify-reproducible-release.sh \
   "reproducibility gate must compare parent package bytes"
 require_pattern 'docker buildx imagetools inspect' scripts/lock-image-digests.sh \
