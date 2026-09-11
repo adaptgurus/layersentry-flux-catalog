@@ -1,5 +1,14 @@
 telemetry: false
 
+# OpenEverest normally uses an Internet-hosted version metadata service to
+# discover supported database/operator artifacts. Production air-gap use must
+# point to a qualified internal mirror of that metadata instead.
+versionMetadataURL: ${LAYERSENTRY_OPENEVEREST_VERSION_METADATA_URL}
+
+upgrade:
+  preflightChecks: true
+  crdChecks: true
+
 server:
   service:
     type: ClusterIP
@@ -30,6 +39,8 @@ server:
 
 operator:
   enableLeaderElection: true
+  webhook:
+    preserveTLSCerts: true
   resources:
     requests:
       cpu: 50m
@@ -44,12 +55,18 @@ dbNamespace:
 
 olm:
   install: true
+  packageserver:
+    tls:
+      # OpenEverest documents cert-manager as the production-recommended mode.
+      type: cert-manager
 
 monitoring:
   enabled: true
 
 kube-state-metrics:
   enabled: true
+
+createMonitoringResources: true
 
 pmm:
   enabled: false
