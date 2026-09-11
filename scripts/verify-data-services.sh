@@ -29,7 +29,8 @@ require_pattern '^  prune: false$' clusters/e1/data-services.yaml "data-services
 
 rendered="$(mktemp)"
 chartdir="$(mktemp -d)"
-trap 'rm -f "$rendered"; rm -rf "$chartdir"' EXIT
+helm_config="$(mktemp -d)"
+trap 'rm -f "$rendered"; rm -rf "$chartdir" "$helm_config"' EXIT
 
 kubectl kustomize apps/data-services > "$rendered"
 require_pattern '^kind: HelmRelease$' "$rendered" "rendered data-services bundle does not contain a HelmRelease"
@@ -44,8 +45,20 @@ chart_version="$(awk -F':[[:space:]]*' '/^version:/ {gsub(/["[:space:]]/, "", $2
 app_version="$(awk -F':[[:space:]]*' '/^appVersion:/ {gsub(/["[:space:]]/, "", $2); print $2; exit}' "$chartdir/charts/everest/Chart.yaml")"
 [[ "$chart_version" == "1.16.2" ]] || fail "unexpected OpenEverest Helm chart version: $chart_version"
 [[ "$app_version" == "1.16.2" ]] || fail "unexpected OpenEverest application version: $app_version"
+require_pattern '^digest: sha256:6364a744f4542c24d2bac0487e7f6749a8b065e461b6358937999a59d06f7f84$' "$chartdir/charts/everest/Chart.lock" "unexpected OpenEverest dependency lock digest"
 
 if command -v helm >/dev/null 2>&1; then
+  export HELM_CONFIG_HOME="$helm_config/config"
+  export HELM_CACHE_HOME="$helm_config/cache"
+  export HELM_DATA_HOME="$helm_config/data"
+
+  # The pinned upstream Chart.lock fixes exact dependency versions, but Helm
+  # still needs repository definitions on a clean runner before it can fetch
+  # those locked artifacts.
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null
+  helm repo add victoria-metrics https://victoriametrics.github.io/helm-charts >/dev/null
+  helm repo add percona https://percona.github.io/percona-helm-charts >/dev/null
+  helm repo add percona-olm https://percona.github.io/operator-lifecycle-manager >/dev/null
   helm dependency build "$chartdir/charts/everest" >/dev/null
   helm template everest "$chartdir/charts/everest" --namespace everest-system -f apps/data-services/openeverest-values.yaml >/dev/null
 else
