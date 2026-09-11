@@ -4,6 +4,7 @@ resources:
   - namespace.yaml
   - openeverest-source.yaml
   - openeverest-helmrelease.yaml
+  - layersentry-dbaas-api.yaml
 generatorOptions:
   disableNameSuffixHash: true
 configMapGenerator:
