@@ -28,6 +28,7 @@ required_files=(
   docs/OFFLINE_GITOPS_WORKFLOW.md
   docs/PRODUCTION_READINESS.md
   examples/e1-site-config.yaml
+  examples/image-mirror-map.example.json
 )
 for file in "${required_files[@]}"; do
   [[ -f "$file" ]] || fail "required production file is missing: $file"
@@ -39,6 +40,7 @@ cluster_file=clusters/e1/data-services.yaml
 helmrelease=apps/data-services/openeverest-helmrelease.yaml
 api_file=apps/data-services/layersentry-dbaas-api.yaml
 spec_file=release/offline-release-spec.json
+mirror_example=examples/image-mirror-map.example.json
 
 # Runtime source is private, exact, authenticated and signature verified.
 require_pattern '^  url: \$\{LAYERSENTRY_OPENEVEREST_HELM_GIT_URL\}$' "$source_file" \
@@ -63,7 +65,7 @@ if grep -Eq '^versionMetadataURL:[[:space:]]+https?://(check\.percona\.com|[^/]*
 fi
 
 # Upstream identity is provenance; mirror identity is a separately signed commit.
-python3 - "$spec_file" <<'PY'
+python3 - "$spec_file" "$mirror_example" <<'PY'
 import json,sys
 s=json.load(open(sys.argv[1]))
 assert s['schemaVersion'] == 1
@@ -79,6 +81,14 @@ assert s['offlineDependencies']['containerRuntimeRegistryMirrorRequired'] is Tru
 assert s['offlineDependencies']['disableDefaultRegistryEndpointRequired'] is True
 assert s['offlineDependencies']['staticImageDigestLock'] == 'provenance/images.lock.json'
 assert s['offlineDependencies']['mirrorVerificationScript'] == 'scripts/verify-image-mirror.sh'
+
+example=json.load(open(sys.argv[2]))
+assert example['schemaVersion'] == 1
+assert isinstance(example.get('images'), list) and example['images']
+for item in example['images']:
+    assert isinstance(item.get('source'), str) and item['source']
+    assert isinstance(item.get('mirror'), str) and item['mirror']
+    assert item['source'] != item['mirror']
 PY
 
 # Preserve existing production-safe reconciliation behavior.
