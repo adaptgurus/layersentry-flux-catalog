@@ -49,6 +49,14 @@ jobs:
           mapfile -t chart_packages < <(find "$tmp" -maxdepth 1 -type f -name '*.tgz' -print)
           test "${#chart_packages[@]}" -eq 1
           chart_package="${chart_packages[0]}"
+          expected_package="$(python3 - <<'PY'
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          print(data['entries'][0]['airGapArtifacts']['chart']['packageDigest'])
+          PY
+          )"
+          actual_package="sha256:$(sha256sum "$chart_package" | awk '{print $1}')"
+          test "$actual_package" = "$expected_package"
           helm show chart "$chart_package" > "$tmp/chart-metadata.yaml"
           grep -Fx 'name: cert-manager' "$tmp/chart-metadata.yaml" >/dev/null
           grep -Fx 'version: v1.21.1' "$tmp/chart-metadata.yaml" >/dev/null
