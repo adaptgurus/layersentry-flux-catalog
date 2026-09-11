@@ -44,7 +44,7 @@ canonicalize_tgz() {
   local -a roots
   [[ -s "$archive" ]] || fail "archive to canonicalize is missing: $archive"
   tmp="$(mktemp -d "$work/canon.XXXXXX")"
-  tar -xzf "$archive" -C "$tmp"
+  tar --warning=no-timestamp -xzf "$archive" -C "$tmp"
   mapfile -t roots < <(find "$tmp" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
   [[ "${#roots[@]}" -eq 1 ]] || fail "archive must contain exactly one chart root: $archive"
   root="${roots[0]}"
@@ -158,28 +158,45 @@ package="$OUT/packages/openeverest-${CHART_VERSION}.tgz"
 [[ -s "$package" ]] || fail "packaged OpenEverest chart was not produced"
 canonicalize_tgz "$package"
 
-rendered="$OUT/provenance/openeverest-rendered.yaml"
+# OpenEverest's install-time templates intentionally generate a random RSA JWT
+# key and random initial admin material when values are absent. Persisting the
+# complete `helm template` output would therefore make evidence nondeterministic
+# and would retain generated secret material. Render only into the private build
+# workspace, derive deterministic inventories/summaries, then discard the render.
+rendered="$work/openeverest-rendered.yaml"
 helm template everest "$chart" \
   --namespace everest-system \
   -f "$ROOT/apps/data-services/openeverest-values.yaml" \
   > "$rendered"
 
-python3 - "$rendered" "$OUT/provenance/images.required.txt" "$OUT/provenance/registries.required.txt" <<'PY'
+python3 - \
+  "$rendered" \
+  "$OUT/provenance/images.required.txt" \
+  "$OUT/provenance/registries.required.txt" \
+  "$OUT/provenance/rendered-resource-kinds.txt" <<'PY'
+import collections
 import re
 import sys
 from pathlib import Path
 
 rendered = Path(sys.argv[1]).read_text().splitlines()
 images = set()
+kinds = collections.Counter()
 for line in rendered:
     m = re.match(r'^\s*image:\s*["\']?([^"\'\s{}]+)', line)
     if m:
         value = m.group(1).strip()
         if value and not value.startswith('${'):
             images.add(value)
+    if line.startswith('kind: '):
+        kind = line.split(':', 1)[1].strip()
+        if kind:
+            kinds[kind] += 1
 
 if not images:
     raise SystemExit('no container/catalog images were discovered in rendered OpenEverest chart')
+if not kinds:
+    raise SystemExit('no Kubernetes resource kinds were discovered in rendered OpenEverest chart')
 
 Path(sys.argv[2]).write_text('\n'.join(sorted(images)) + '\n')
 registries = set()
@@ -190,6 +207,9 @@ for image in images:
     else:
         registries.add('docker.io')
 Path(sys.argv[3]).write_text('\n'.join(sorted(registries)) + '\n')
+Path(sys.argv[4]).write_text(
+    ''.join(f'{kind}\t{kinds[kind]}\n' for kind in sorted(kinds))
+)
 PY
 
 cp "$ROOT/release/offline-release-spec.json" "$OUT/provenance/offline-release-spec.json"
@@ -249,6 +269,7 @@ manifest = {
         'sourceDateEpochPinned': True,
         'deterministicLocalDependencyArchives': True,
         'deterministicParentPackage': True,
+        'generatedSecretRenderExcluded': True,
     },
     'runtimeRequirements': {
         'signedPrivateGitMirror': True,
