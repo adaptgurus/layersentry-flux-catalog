@@ -1,0 +1,55 @@
+telemetry: false
+
+server:
+  service:
+    type: ClusterIP
+  rbac:
+    enabled: true
+    policy: |
+      g, admin, role:admin
+  tls:
+    enabled: true
+    certificate:
+      create: false
+    secret:
+      name: everest-server-tls
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+operator:
+  enableLeaderElection: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+dbNamespace:
+  enabled: true
+  namespaceOverride: layersentry-dbaas
+
+olm:
+  install: true
+
+monitoring:
+  enabled: true
+
+kube-state-metrics:
+  enabled: true
+
+pmm:
+  enabled: false
+pmm3:
+  enabled: false
+
+ingress:
+  enabled: false
+gatewayAPI:
+  enabled: false
