@@ -16,10 +16,14 @@ connected qualification CI
   - vendors all Helm dependencies
   - packages chart
   - renders chart and inventories static images/registries
-  - emits release manifest + SHA256SUMS
+  - resolves each static image to an immutable registry manifest digest
+  - emits release manifest + images.lock.json + SHA256SUMS
         |
         v
 controlled air-gap transfer
+        |
+        +--> import static images into selected private registry
+        |     and verify each mirror digest against images.lock.json
         |
         v
 signed private Git mirror commit
@@ -58,6 +62,32 @@ Vendoring dependencies changes the Git tree, so claiming that a vendored mirror
 has the original upstream commit SHA would be incorrect. The release manifest
 and SHA-256 chain binds the mirror content back to the upstream provenance.
 
+## Container image identity
+
+The rendered chart includes image tags that are convenient for upstream release
+management but are mutable registry references. Connected qualification CI must
+therefore run:
+
+```text
+scripts/lock-image-digests.sh dist/offline-release
+```
+
+This resolves each statically rendered image to its current registry manifest
+`sha256` digest and writes `provenance/images.lock.json`. The offline verifier
+requires exact one-for-one coverage between `images.required.txt` and that lock.
+
+After the approved images have been transferred to the selected private
+registry, create a site-local JSON map using
+`examples/image-mirror-map.example.json` as the schema and run:
+
+```text
+scripts/verify-image-mirror.sh dist/offline-release /secure/path/mirror-map.json
+```
+
+The verifier queries each private mirror reference and requires the same registry
+manifest digest that was qualified from the source. Registry vendor, project
+names and repository paths remain deployment choices.
+
 ## Package source boundary
 
 The final products used to host the private Git repository, image registries and
@@ -67,6 +97,7 @@ these interfaces:
 - Git source reachable by Flux without Internet access;
 - exact signed mirror commit;
 - Git auth/CA Secret and signature-verification Secret;
+- private image mirror copies matching the qualified static digest lock;
 - container runtime registry mirrors that cover the release inventory and all
   dynamically advertised DB/operator images;
 - RKE2 `disable-default-registry-endpoint: true` with an explicit mirror entry
@@ -94,13 +125,16 @@ The offline workflow produces a bundle containing:
 - `provenance/offline-release-spec.json`;
 - upstream repository/commit and tool versions;
 - rendered OpenEverest manifest used for static inventory;
-- `images.required.txt` and `registries.required.txt`;
+- `images.required.txt`, `images.lock.json` and `registries.required.txt`;
+- Docker Buildx version used for digest resolution;
 - `release-manifest.json`;
 - `SHA256SUMS`.
 
 Static image discovery cannot see every image that will later be selected by the
 OLM catalog or OpenEverest version metadata. Production promotion therefore must
-also mirror and lock those dynamic artifacts before live deployment.
+also mirror and lock those dynamic artifacts before live deployment. The static
+lock is necessary evidence, not a substitute for dynamic operator/database image
+qualification.
 
 ## Runtime qualification
 
