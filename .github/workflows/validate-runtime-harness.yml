@@ -1,0 +1,30 @@
+name: Validate DBaaS runtime qualification harness
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/runtime/**'
+      - 'docs/RUNTIME_QUALIFICATION.md'
+      - '.github/workflows/validate-runtime-harness.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/runtime/**'
+      - 'docs/RUNTIME_QUALIFICATION.md'
+      - '.github/workflows/validate-runtime-harness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-runtime-harness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate fail-closed qualification contract
+        shell: bash
+        run: bash scripts/runtime/verify-runtime-harness.sh
