@@ -13,6 +13,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Install qualified Helm toolchain
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+        with:
+          version: v3.14.0
       - name: Validate catalog policy
         run: |
           python3 scripts/validate_catalog.py catalog/v1/catalog.json
@@ -27,6 +31,7 @@ jobs:
           set -euo pipefail
           command -v helm
           command -v cosign
+          test "$(helm version --template '{{.Version}}')" = 'v3.14.0'
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
 
@@ -97,7 +102,7 @@ jobs:
           data=json.load(open('catalog/v1/catalog.json'))
           values=data['entries'][0]['install']['values']
           for key in ('image.digest','webhook.image.digest','cainjector.image.digest','acmesolver.image.digest','startupapicheck.image.digest'):
-              print(f'--set={key}={values[key]}')
+              print(f'--set-string={key}={values[key]}')
           PY
           mapfile -t digest_values < "$tmp/digest-values.txt"
 
