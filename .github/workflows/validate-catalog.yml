@@ -1,0 +1,133 @@
+name: Validate provider-neutral Kubernetes catalog
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install qualified Helm toolchain
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+        with:
+          version: v3.14.0
+      - name: Validate catalog policy
+        run: |
+          python3 scripts/validate_catalog.py catalog/v1/catalog.json
+          python3 -m unittest discover -s tests -v
+      - name: Install pinned Cosign verifier
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
+        with:
+          cosign-release: v3.1.2
+      - name: Verify cert-manager OCI chart, PGP provenance and air-gap closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v helm
+          command -v cosign
+          test "$(helm version --template '{{.Version}}')" = 'v3.14.0'
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          keyring="$tmp/cert-manager-keyring.gpg"
+          image_key="$tmp/cert-manager-pubkey.pem"
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
+            https://cert-manager.io/public-keys/cert-manager-keyring-2021-09-20-1020CF3C033D4F35BAE1C19E1226061C665DF13E.gpg \
+            -o "$keyring"
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
+            https://cert-manager.io/public-keys/cert-manager-pubkey-2021-09-20.pem \
+            -o "$image_key"
+
+          python3 - <<'PY' > "$tmp/chart.env"
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          version=data['entries'][0]['supportedVersions'][0]
+          print('CHART_REPO='+version['chart']['ociRepository'])
+          print('CHART_VERSION='+version['chart']['version'])
+          print('EXPECTED_CHART='+version['chart']['manifestDigest'])
+          print('EXPECTED_PACKAGE='+data['entries'][0]['airGapArtifacts']['chart']['packageDigest'])
+          PY
+          source "$tmp/chart.env"
+          output="$(helm pull "$CHART_REPO" --version "$CHART_VERSION" --verify --keyring "$keyring" --destination "$tmp" 2>&1)"
+          printf '%s\n' "$output"
+          actual_chart="$(printf '%s\n' "$output" | awk '/^Digest:/ {print $2}' | tail -1)"
+          test "$actual_chart" = "$EXPECTED_CHART"
+          printf '%s\n' "$output" | grep -F 'Using Key With Fingerprint: 1020CF3C033D4F35BAE1C19E1226061C665DF13E' >/dev/null
+
+          mapfile -t chart_packages < <(find "$tmp" -maxdepth 1 -type f -name '*.tgz' -print)
+          test "${#chart_packages[@]}" -eq 1
+          chart_package="${chart_packages[0]}"
+          actual_package="sha256:$(sha256sum "$chart_package" | awk '{print $1}')"
+          test "$actual_package" = "$EXPECTED_PACKAGE"
+          helm show chart "$chart_package" > "$tmp/chart-metadata.yaml"
+          grep -Fx 'name: cert-manager' "$tmp/chart-metadata.yaml" >/dev/null
+          grep -Fx "version: $CHART_VERSION" "$tmp/chart-metadata.yaml" >/dev/null
+
+          python3 - <<'PY' > "$tmp/release-assets.tsv"
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          assets=data['entries'][0]['airGapArtifacts'].get('releaseAssets', [])
+          if not assets:
+              raise SystemExit('releaseAssets must not be empty')
+          for asset in assets:
+              print(f"{asset['sha256']}\t{asset['url']}\t{asset['name']}")
+          PY
+          while IFS=$'\t' read -r expected url name; do
+            case "$name" in
+              ''|*/*|*'..'*) echo "unsafe release asset name: $name" >&2; exit 1 ;;
+            esac
+            curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL "$url" -o "$tmp/$name"
+            actual="$(sha256sum "$tmp/$name" | awk '{print $1}')"
+            test "$actual" = "$expected"
+          done < "$tmp/release-assets.tsv"
+
+          python3 - <<'PY' > "$tmp/images.txt"
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          for image in data['entries'][0]['airGapArtifacts']['images']:
+              print(image['immutableRef'])
+          PY
+          while IFS= read -r image; do
+            cosign verify --signature-digest-algorithm sha512 --insecure-ignore-tlog --key "$image_key" "$image" >/dev/null
+          done < "$tmp/images.txt"
+
+          python3 - <<'PY' > "$tmp/digest-values.txt"
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          values=data['entries'][0]['install']['values']
+          for key in ('image.digest','webhook.image.digest','cainjector.image.digest','acmesolver.image.digest','startupapicheck.image.digest'):
+              print(f'--set-string={key}={values[key]}')
+          PY
+          mapfile -t digest_values < "$tmp/digest-values.txt"
+
+          python3 - <<'PY' > "$tmp/mirror-values.txt"
+          import json
+          data=json.load(open('catalog/v1/catalog.json'))
+          for image in data['entries'][0]['airGapArtifacts']['images']:
+              name=image['repository'].rsplit('/', 1)[-1]
+              mirror=f'registry.airgap.invalid/layersentry/{name}'
+              print(f"--set-string={image['helmRepositoryValue']}={mirror}")
+          PY
+          mapfile -t mirror_values < "$tmp/mirror-values.txt"
+
+          helm template cert-manager "$chart_package" \
+            --namespace cert-manager \
+            --set=crds.enabled=true \
+            --set=crds.keep=true \
+            "${digest_values[@]}" \
+            "${mirror_values[@]}" > "$tmp/rendered.yaml"
+          while IFS= read -r image; do
+            digest="${image##*@}"
+            grep -F -- "$digest" "$tmp/rendered.yaml" >/dev/null
+          done < "$tmp/images.txt"
+          if grep -E '^[[:space:]]*image:.*quay\.io/jetstack/' "$tmp/rendered.yaml"; then
+            echo 'air-gap render still references upstream quay.io images' >&2
+            exit 1
+          fi
+          grep -F 'registry.airgap.invalid/layersentry/' "$tmp/rendered.yaml" >/dev/null
