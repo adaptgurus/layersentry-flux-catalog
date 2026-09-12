@@ -20,12 +20,17 @@ required_files=(
   apps/data-services/layersentry-dbaas-api.yaml
   clusters/e1/data-services.yaml
   release/offline-release-spec.json
+  release/helm-dependency-artifact-lock.json
   scripts/build-offline-release.sh
+  scripts/verify-reproducible-release.sh
+  scripts/lock-image-digests.sh
+  scripts/verify-image-mirror.sh
   scripts/verify-offline-release.sh
   scripts/create-offline-git-source.sh
   docs/OFFLINE_GITOPS_WORKFLOW.md
   docs/PRODUCTION_READINESS.md
   examples/e1-site-config.yaml
+  examples/image-mirror-map.example.json
 )
 for file in "${required_files[@]}"; do
   [[ -f "$file" ]] || fail "required production file is missing: $file"
@@ -37,6 +42,8 @@ cluster_file=clusters/e1/data-services.yaml
 helmrelease=apps/data-services/openeverest-helmrelease.yaml
 api_file=apps/data-services/layersentry-dbaas-api.yaml
 spec_file=release/offline-release-spec.json
+dependency_artifact_lock=release/helm-dependency-artifact-lock.json
+mirror_example=examples/image-mirror-map.example.json
 
 # Runtime source is private, exact, authenticated and signature verified.
 require_pattern '^  url: \$\{LAYERSENTRY_OPENEVEREST_HELM_GIT_URL\}$' "$source_file" \
@@ -60,21 +67,56 @@ if grep -Eq '^versionMetadataURL:[[:space:]]+https?://(check\.percona\.com|[^/]*
   fail "public OpenEverest version metadata fallback found"
 fi
 
-# Upstream identity is kept as provenance rather than falsely reusing the
-# original commit SHA for the dependency-vendored mirror tree.
-python3 - "$spec_file" <<'PY'
-import json,sys
+# Upstream identity is provenance; mirror identity is a separately signed commit.
+python3 - "$spec_file" "$mirror_example" "$dependency_artifact_lock" <<'PY'
+import json,re,sys
 s=json.load(open(sys.argv[1]))
 assert s['schemaVersion'] == 1
 assert s['qualifiedUpstream']['commit'] == '568186ace62846557e29841edad76c08f8b913a4'
 assert s['qualifiedUpstream']['chartVersion'] == '1.16.2'
 assert s['qualifiedUpstream']['appVersion'] == '1.16.2'
+assert s['qualifiedUpstream']['dependencyArtifactLock'] == 'release/helm-dependency-artifact-lock.json'
 assert s['runtimeSource']['commitVariable'] == 'LAYERSENTRY_OPENEVEREST_HELM_MIRROR_COMMIT'
 assert s['runtimeSource']['chartPath'] == './packages/openeverest-1.16.2.tgz'
 assert s['productionPolicy']['signedMirrorCommitRequired'] is True
 assert s['productionPolicy']['vendoredHelmDependenciesRequired'] is True
+assert s['productionPolicy']['staticImageDigestsLockedRequired'] is True
+assert s['productionPolicy']['reproducibleOfflineReleaseRequired'] is True
+assert s['productionPolicy']['generatedInstallSecretEvidenceForbidden'] is True
 assert s['offlineDependencies']['containerRuntimeRegistryMirrorRequired'] is True
 assert s['offlineDependencies']['disableDefaultRegistryEndpointRequired'] is True
+assert s['offlineDependencies']['staticImageDigestLock'] == 'provenance/images.lock.json'
+assert s['offlineDependencies']['mirrorVerificationScript'] == 'scripts/verify-image-mirror.sh'
+assert s['releaseEngineering']['dependencyArtifactDigestsRequired'] is True
+assert s['releaseEngineering']['canonicalLocalDependencyArchivesRequired'] is True
+assert s['releaseEngineering']['canonicalParentChartArchiveRequired'] is True
+assert s['releaseEngineering']['twoBuildReproducibilityRequired'] is True
+assert s['releaseEngineering']['sourceDateEpochFromUpstreamCommit'] is True
+assert s['releaseEngineering']['generatedSecretRenderExcludedRequired'] is True
+assert s['releaseEngineering']['deterministicRenderSummary'] == 'provenance/rendered-resource-kinds.txt'
+
+example=json.load(open(sys.argv[2]))
+assert example['schemaVersion'] == 1
+assert isinstance(example.get('images'), list) and example['images']
+for item in example['images']:
+    assert isinstance(item.get('source'), str) and item['source']
+    assert isinstance(item.get('mirror'), str) and item['mirror']
+    assert item['source'] != item['mirror']
+
+lock=json.load(open(sys.argv[3]))
+assert lock['schemaVersion'] == 1
+assert lock['upstreamCommit'] == s['qualifiedUpstream']['commit']
+entries=lock.get('dependencies', [])
+assert len(entries) == 8
+seen=set()
+for item in entries:
+    assert item['file'].endswith('.tgz')
+    assert re.fullmatch(r'[0-9a-f]{64}', item['sha256'])
+    assert item['archivePolicy'] in ('canonical-local','preserve-upstream')
+    assert item['file'] not in seen
+    seen.add(item['file'])
+assert sum(1 for x in entries if x['archivePolicy']=='canonical-local') == 4
+assert sum(1 for x in entries if x['archivePolicy']=='preserve-upstream') == 4
 PY
 
 # Preserve existing production-safe reconciliation behavior.
@@ -109,11 +151,37 @@ require_pattern '^  replicas: 1$' "$api_file" \
 require_pattern '^    type: Recreate$' "$api_file" \
   "FileStore DBaaS API must retain Recreate strategy"
 
-# All new release helper scripts must be strict shell and syntactically valid.
-for script in scripts/build-offline-release.sh scripts/verify-offline-release.sh scripts/create-offline-git-source.sh; do
+# All release helper scripts must be strict shell and syntactically valid.
+for script in \
+  scripts/build-offline-release.sh \
+  scripts/verify-reproducible-release.sh \
+  scripts/lock-image-digests.sh \
+  scripts/verify-image-mirror.sh \
+  scripts/verify-offline-release.sh \
+  scripts/create-offline-git-source.sh; do
   grep -Fxq 'set -euo pipefail' "$script" || fail "$script is not strict shell"
   bash -n "$script" || fail "$script has invalid shell syntax"
 done
+
+require_pattern 'canonicalize_tgz' scripts/build-offline-release.sh \
+  "release builder must canonicalize Helm-generated archives"
+require_pattern 'helm-dependency-artifact-lock\.json' scripts/build-offline-release.sh \
+  "release builder must enforce the dependency artifact lock"
+require_pattern 'rendered=\"\$work/openeverest-rendered\.yaml\"' scripts/build-offline-release.sh \
+  "full Helm render must remain temporary rather than release evidence"
+if grep -Fq '$OUT/provenance/openeverest-rendered.yaml' scripts/build-offline-release.sh; then
+  fail "release builder must not persist generated-secret Helm render evidence"
+fi
+require_pattern 'generatedSecretRenderExcluded' scripts/verify-reproducible-release.sh \
+  "reproducibility gate must assert generated secret render exclusion"
+require_pattern 'parent Helm package bytes differ' scripts/verify-reproducible-release.sh \
+  "reproducibility gate must compare parent package bytes"
+require_pattern 'docker buildx imagetools inspect' scripts/lock-image-digests.sh \
+  "image lock must resolve registry manifest digests"
+require_pattern 'images\.lock\.json' scripts/verify-offline-release.sh \
+  "offline release verifier must require the image digest lock"
+require_pattern 'mirror digest mismatch' scripts/verify-image-mirror.sh \
+  "private mirror verifier must fail on digest mismatch"
 
 rendered="$(mktemp)"
 trap 'rm -f "$rendered"' EXIT

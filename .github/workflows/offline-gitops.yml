@@ -7,12 +7,15 @@ on:
       - 'clusters/e1/**'
       - 'release/**'
       - 'scripts/build-offline-release.sh'
+      - 'scripts/verify-reproducible-release.sh'
+      - 'scripts/lock-image-digests.sh'
+      - 'scripts/verify-image-mirror.sh'
       - 'scripts/verify-offline-release.sh'
       - 'scripts/create-offline-git-source.sh'
       - 'scripts/verify-offline-gitops.sh'
       - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
       - 'docs/PRODUCTION_READINESS.md'
-      - 'examples/e1-site-config.yaml'
+      - 'examples/**'
       - '.github/workflows/offline-gitops.yml'
   push:
     branches:
@@ -22,12 +25,15 @@ on:
       - 'clusters/e1/**'
       - 'release/**'
       - 'scripts/build-offline-release.sh'
+      - 'scripts/verify-reproducible-release.sh'
+      - 'scripts/lock-image-digests.sh'
+      - 'scripts/verify-image-mirror.sh'
       - 'scripts/verify-offline-release.sh'
       - 'scripts/create-offline-git-source.sh'
       - 'scripts/verify-offline-gitops.sh'
       - 'docs/OFFLINE_GITOPS_WORKFLOW.md'
       - 'docs/PRODUCTION_READINESS.md'
-      - 'examples/e1-site-config.yaml'
+      - 'examples/**'
       - '.github/workflows/offline-gitops.yml'
   workflow_dispatch:
 
@@ -60,9 +66,23 @@ jobs:
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
         with:
           version: v3.14.0
-      - name: Build qualified self-contained offline release
+      - name: Install pinned Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
+      - name: Build qualified self-contained offline release twice
         shell: bash
-        run: bash scripts/build-offline-release.sh dist/offline-release
+        run: |
+          set -euo pipefail
+          bash scripts/build-offline-release.sh dist/offline-release
+          bash scripts/build-offline-release.sh dist/offline-release-rebuild
+      - name: Prove release reproducibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify-reproducible-release.sh dist/offline-release dist/offline-release-rebuild
+          rm -rf dist/offline-release-rebuild
+      - name: Resolve immutable container image digests
+        shell: bash
+        run: bash scripts/lock-image-digests.sh dist/offline-release
       - name: Verify release without Helm repository configuration
         shell: bash
         run: bash scripts/verify-offline-release.sh dist/offline-release

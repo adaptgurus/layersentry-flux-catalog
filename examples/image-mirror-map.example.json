@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "images": [
+    {
+      "source": "ghcr.io/openeverest/openeverest:1.16.2",
+      "mirror": "registry.internal.example/layersentry/openeverest:1.16.2"
+    },
+    {
+      "source": "ghcr.io/openeverest/openeverest-operator:1.16.2",
+      "mirror": "registry.internal.example/layersentry/openeverest-operator:1.16.2"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "upstreamCommit": "568186ace62846557e29841edad76c08f8b913a4",
+  "dependencies": [
+    {
+      "name": "common",
+      "version": "0.0.20",
+      "repository": "file://charts/common",
+      "file": "common-0.0.20.tgz",
+      "sha256": "8bda9a70becd5338aec1e21bf4841ab2a0fdde9c3745ed5262a1662c55cc36f0",
+      "archivePolicy": "canonical-local"
+    },
+    {
+      "name": "everest-db-namespace",
+      "version": "1.15.0",
+      "repository": "file://charts/everest-db-namespace",
+      "file": "everest-db-namespace-1.15.0.tgz",
+      "sha256": "98077f7812593f43c80a217e6320b851d46933be18211b8094e55dca8cba8e8e",
+      "archivePolicy": "canonical-local"
+    },
+    {
+      "name": "kube-state-metrics",
+      "version": "5.27.0",
+      "repository": "https://prometheus-community.github.io/helm-charts",
+      "file": "kube-state-metrics-5.27.0.tgz",
+      "sha256": "685f0a6c1ba6b545a92c2d8b7e4580b2000174cfc594039ef7f53952d1c30a4a",
+      "archivePolicy": "preserve-upstream"
+    },
+    {
+      "name": "victoria-metrics-operator",
+      "version": "0.43.0",
+      "repository": "https://victoriametrics.github.io/helm-charts",
+      "file": "victoria-metrics-operator-0.43.0.tgz",
+      "sha256": "5659deaee2b2171b3a31450497f6a5fe6221781c78f4a03c7988881febbea53f",
+      "archivePolicy": "preserve-upstream"
+    },
+    {
+      "name": "pmm",
+      "version": "1.3.21",
+      "repository": "https://percona.github.io/percona-helm-charts",
+      "file": "pmm-1.3.21.tgz",
+      "sha256": "854137fe6eb66ca38e1b3dfa600297031c519af1bc32d382731e40e0aee1ad7b",
+      "archivePolicy": "preserve-upstream"
+    },
+    {
+      "name": "pmm3",
+      "version": "0.0.1",
+      "repository": "file://charts/pmm3",
+      "file": "pmm3-0.0.1.tgz",
+      "sha256": "6afcd51efff993e3e5fde413e86a70e90ed56e12d830d5fa26fd6b49c7d02adc",
+      "archivePolicy": "canonical-local"
+    },
+    {
+      "name": "everest-crds",
+      "version": "1.16.2",
+      "repository": "file://charts/everest-crds",
+      "file": "everest-crds-1.16.2.tgz",
+      "sha256": "a55cb5145cc6a53a91b96b7a1a8aebf20c0f3ec67df7722dc92234bc1cbd7f80",
+      "archivePolicy": "canonical-local"
+    },
+    {
+      "name": "operator-lifecycle-manager",
+      "version": "0.1.0",
+      "repository": "https://percona.github.io/operator-lifecycle-manager",
+      "file": "operator-lifecycle-manager-0.1.0.tgz",
+      "sha256": "bbb952202b87f9c6e5fa50e5c83b97eb9c27a75db06bffaf04e30a3b52219a39",
+      "archivePolicy": "preserve-upstream"
+    }
+  ]
+}
