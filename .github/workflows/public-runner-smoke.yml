@@ -1,0 +1,27 @@
+name: Public standard runner qualification
+
+on:
+  push:
+    branches:
+      - qualification/public-actions-check-20261108
+    paths:
+      - .github/workflows/public-runner-smoke.yml
+
+permissions: {}
+
+jobs:
+  public-runner-smoke:
+    if: github.repository == 'adaptgurus/layersentry-flux-catalog' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Verify public standard-runner execution
+        shell: bash
+        env:
+          REPOSITORY_IS_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          test "$REPOSITORY_IS_PRIVATE" = false
+          printf 'PUBLIC_STANDARD_RUNNER_EXECUTED\n'
+          printf 'No repository checkout, private source, credentials, artifacts, deployments, or lab connectivity used.\n'
+          printf 'Public runner execution is a CI billing-path check, not product acceptance.\n'
