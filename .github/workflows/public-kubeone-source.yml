@@ -44,14 +44,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo install -d -m 0700 /opt/layersentry-public-source
-          sudo cp -R qualification/kubeone-dr-source/. /opt/layersentry-public-source/
-          sudo chown -R root:root /opt/layersentry-public-source
+          sudo install -d -m 0700 /root/layersentry-public-source
+          sudo cp -R qualification/kubeone-dr-source/. /root/layersentry-public-source/
+          sudo chown -R root:root /root/layersentry-public-source
+          sudo stat -c "%U:%G %a %n" / /root /root/layersentry-public-source
           sudo env PATH="$PATH" GOTOOLCHAIN=local GOMAXPROCS=2 bash -c '
             set -euo pipefail
-            cd /opt/layersentry-public-source
+            cd /root/layersentry-public-source
             go test -p=2 -count=1 ./...
             go test -p=2 -count=1 -race ./...
             go vet ./...
-            go build -o /opt/layersentry-public-source/portal-qualification ./cmd/layersentry-kubeone-portal
+            go build -o /root/layersentry-public-source/portal-qualification ./cmd/layersentry-kubeone-portal
           '
