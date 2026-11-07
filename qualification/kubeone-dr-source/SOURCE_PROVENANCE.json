@@ -1,0 +1,692 @@
+{
+  "source_commit": "a9c8f982cb325ba4a0fb67d655f238ef07c4b6d4",
+  "scope": "KubeOne and portal source-only qualification snapshot",
+  "private_history_included": false,
+  "live_configuration_included": false,
+  "files": [
+    {
+      "path": "cmd/layersentry-kubeone-portal/gateway_process_test.go",
+      "sha256": "542d36003b1b81eb3f6e5ea4f5424ee917e4cfc5721815a221fc0f6b53594e27",
+      "source_blob": "81d3499af19015028c46a855ef4e609f53996d7b"
+    },
+    {
+      "path": "cmd/layersentry-kubeone-portal/main.go",
+      "sha256": "b56a0586cc050c8fdf187f20aa717847ed3b7043099b5a88fe5428ba85ecf2e8",
+      "source_blob": "4288172b4cb8539ab86dd206fa19ce485c7ce14a"
+    },
+    {
+      "path": "cmd/layersentry-kubeone-portal/main_test.go",
+      "sha256": "4a37d2902d63b90a9628bfb407504d2cdba5112f30ac1473d61e881da7ffa544",
+      "source_blob": "d6f79e4020f0391d27c86006fd52c21af098b9af"
+    },
+    {
+      "path": "cmd/layersentry-kubeone-portal/process_test.go",
+      "sha256": "aa9b7818ea5689a1a291f82197a6dab627be29d269ab8fca5ce0cad2df5dffb0",
+      "source_blob": "9f074500ffd9903d41fd038f9f0aafe5984a06aa"
+    },
+    {
+      "path": "cmd/layersentry-kubeone-portal/transport.go",
+      "sha256": "cb2251516cd58a31e15421f0157f0d970a973ad98cb8c6294bd08726302375f1",
+      "source_blob": "959c2f0b58093ec420ba7efffe779020cabd37c5"
+    },
+    {
+      "path": "cmd/layersentry-kubeone-portal/transport_test.go",
+      "sha256": "233cfcc7c26627ffe39c8cc4d88a4363d876376c27ce9748cd58bf18632cf68d",
+      "source_blob": "1733d35fed6d5707b14a1ea11406ecfd0c96668f"
+    },
+    {
+      "path": "cmd/layersentry-kubeone-portal/workspace_boundary_process_test.go",
+      "sha256": "ef755e7071ab13856aaf298984b4f3eb3231b3032027dcf1f645bb9c090b4ffe",
+      "source_blob": "35fca1f8eef5b26cfc90aa46f3f0ee325369fb59"
+    },
+    {
+      "path": "go.mod",
+      "sha256": "e39b8d57909a88da23bb3371598379d6e7b6354c7aa5704b25de2bd52c10aa87",
+      "source_blob": "0f3c0754df1022518d164683bc2faefa0f976b2c"
+    },
+    {
+      "path": "go.sum",
+      "sha256": "78f5e51df71360c9896ecea529eca66857481790d4c6ffa41741e98f96f1103c",
+      "source_blob": "4c83c887904ec851467a2fac419df3b06bd4920d"
+    },
+    {
+      "path": "internal/kubeone/apirelay/config.go",
+      "sha256": "e1fb99acd8479b2a98e3468cac0939825f8016a46b4f63f2f91ce7200f3de5aa",
+      "source_blob": "ebcfac96fb1807adacf489b952269f71851d7979"
+    },
+    {
+      "path": "internal/kubeone/apirelay/config_test.go",
+      "sha256": "8253ec8d711b6ac3f5609a7d62897193bb2a3a139db15100737470ecb83a1c66",
+      "source_blob": "3ed5d9fce789010beb2854b8c0bc7c6e6284b6e2"
+    },
+    {
+      "path": "internal/kubeone/apirelay/install.go",
+      "sha256": "2f9047e60880b7f72c7a02b67722c8fb7017dfe5100c73e7684a35f7c100133d",
+      "source_blob": "d6a7ecae9b48a1742d996b2174ab1facd5214fb6"
+    },
+    {
+      "path": "internal/kubeone/apirelay/install_test.go",
+      "sha256": "5c5c2963d336020a7271b5e21db9c341725d07cc3039a6423c165421df6d89c1",
+      "source_blob": "068a18ad5ef87a68fdfc8727c57b2379d78a20df"
+    },
+    {
+      "path": "internal/kubeone/apirelay/server.go",
+      "sha256": "23d6dd29593aa669fa81fddb5f27feaef3f879c9fad0639baa66158554a28375",
+      "source_blob": "3b0993e1cc50df30053940f797267591f0cf1cfd"
+    },
+    {
+      "path": "internal/kubeone/apirelay/server_test.go",
+      "sha256": "76b7eafe6a434d196815f4e7efcf5606af9bebf2c7cb65b6dd0c89f70919a826",
+      "source_blob": "bc10374900e8cb61486cfd1cd6413f1eafc774e8"
+    },
+    {
+      "path": "internal/kubeone/apirelay/ssh.go",
+      "sha256": "62c78c754504f9e30abf22adfbf8604913d4128b7e942a659289854580831b70",
+      "source_blob": "3b6fd083ab188e77dbe3bbc8b915c8ae4b9ac82f"
+    },
+    {
+      "path": "internal/kubeone/client.go",
+      "sha256": "5fca7e012b5b53bea4f3f261e4b80ea9e1cb511a6c0be6a02b5bac98e7cc8511",
+      "source_blob": "8253f8bac10bad22ffea0b452310c5568376866c"
+    },
+    {
+      "path": "internal/kubeone/client_test.go",
+      "sha256": "5cf7a1d39fc7e0935c0d2b7dc53255856f37fb20d0974eddc20f0eeb43286e93",
+      "source_blob": "11b431a512c27112115bc5915a53599072984182"
+    },
+    {
+      "path": "internal/kubeone/health_inventory_shape_test.go",
+      "sha256": "7e816b6a5551d338a53c15b653b02605215ca1a8c0f2079cf7b37e1f740cbb25",
+      "source_blob": "12b7048a5e8f2d33b908cd4b5ad1ad042597f72e"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/WORKSPACE_SUSPENSION.md",
+      "sha256": "16ebf45aa37b854982a3c81ab95e573ccdeb82c8fcb781ed83527cb6e8bcea5e",
+      "source_blob": "bf92556af1420fc0ede621acf3dc432ddfc7f0ce"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/api_proxy_credentials.go",
+      "sha256": "d434e85ac2f449c2ec5c908e106aa54eb16be5a6ec23923cfdaa1d79fd8409d6",
+      "source_blob": "ae2fb71b4aae4258805dd7b6fcc6eb9fe2341097"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/api_proxy_test.go",
+      "sha256": "dba2f0870f1baa300084d10e563b40fcf6fbae7c25805e492173de9d15938e6c",
+      "source_blob": "8afd793151fcc93f68dfaa87d1d3c2bbf5cce6c9"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/application_inventory_test.go",
+      "sha256": "da75c6ed41b8cadb004a3a9371111f1cf34747b733727ee347333091f56d09a6",
+      "source_blob": "e03fc235be6cafa51524142e112805c412215198"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/applications.go",
+      "sha256": "d72f84e45e33a82f7f01d14ec96233bb99b7f0d0cb4b53b59fff2fab7e11a5cd",
+      "source_blob": "718f68c554c6f2ed7131a02d18759301c8b6478e"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/apply_attribution_test.go",
+      "sha256": "e555d84fe329b2a0cf9ce1cb94c38a1af8cd67f16a27c8c5142669e5f8b2271a",
+      "source_blob": "70fc4caf720f6f7454be260a790c4891de9caac6"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/client.go",
+      "sha256": "0aef070336603d2724aae3a26cc75c32e207127f7de04b9bf2a41e453c8694e8",
+      "source_blob": "d551d4dbb348debaf01e0840b116dfca83f0d165"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/client_test.go",
+      "sha256": "9f81622daadd5f60efb898302e7e71e2d03bf56540880f57cb351f7a7730fd65",
+      "source_blob": "b59e449e083ac63b0a289def4d8ab8af8cef448d"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/health_inventory_shape_test.go",
+      "sha256": "e96c7d77d339afb863177ae4f4981d7d5cbf9908a6016e2aa4ed22719d1c8a39",
+      "source_blob": "fa9fe7a44f4b358d8208db3f789016c2608fb7d9"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/lifecycle_stepup_test.go",
+      "sha256": "cace66ef17c3fe9a1893fc6173eafb02894b09d026ecd798ef74d7f1b2b9e942",
+      "source_blob": "59f84b0cafbed8dc26aa287345eb975661c887a5"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/namespace_identity.go",
+      "sha256": "722da9bb22b2ac8078ffe0c451d070e3d502efc2fc7785793ff8725596d762e5",
+      "source_blob": "579f811e518270000b93b64ad48744840cf2899f"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/namespace_identity_test.go",
+      "sha256": "88365a1d83b88d76798b0c79af3c8e32f08e9c993e9778693622860b8dca4536",
+      "source_blob": "bdff34b982b841bf3c2d4085b09e6e3d047f55ae"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/namespace_test.go",
+      "sha256": "0084373c8c38b3459e5931793dc961764c51c54eee3edf5efa04c21964f1a4ca",
+      "source_blob": "e5211b85b03ea0127da9c78fa6f163a2b84bd07c"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/node_identity_readback_test.go",
+      "sha256": "aa2686ceb87b6a65babc3a47988f3a8b8ac6c19affea34b63d50690c72300c6d",
+      "source_blob": "e444e9beafdb11f06d76b36b00783d97019efc2e"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/persisted_job_json.go",
+      "sha256": "1fecae95deb2b5544a2d0621ae1d5fcf56d3281cd6356ca0e18438779d2dd706",
+      "source_blob": "1725f892c544d0420f9f23cd0adc4328c4046205"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/persisted_job_json_test.go",
+      "sha256": "e3a25d57344723d53605d65e946ba0b3f5cb3ca4727bf8023ac5959339c08a6c",
+      "source_blob": "9f12289a460ba4681ee1e49d73e45f22210d7332"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/portal.go",
+      "sha256": "2655783dac29554d2cb4ff1fa00c963afcbd73badf048c9f7d838039ba1171a0",
+      "source_blob": "ed62b24130654704345d65e431b8374db52af3ce"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/portal_test.go",
+      "sha256": "fdbda9693a088c455533def974809157549fbde2421310f8f60f2ef5df040a9f",
+      "source_blob": "6426038b978922c24fadf4f09dade0ac0937fc80"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/provision_admission_test.go",
+      "sha256": "acb9519fb9d19ae97d4f3a58cae3b35372d0b4c7370df92999ca6ec51ad58063",
+      "source_blob": "a59ac736552e120dea70333dc18475bca4fea7fc"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/provision_request_test.go",
+      "sha256": "104207a86b7645cab02b8e47f822c8138ad9147d7d588ebe30bcced14479852e",
+      "source_blob": "2219f92f630f6b127fa2fca84a54c4474d86d35d"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/readiness_response_test.go",
+      "sha256": "c3c519fe4dfcacaec0e9a61e8d47ddb32241499ee58d76691d02ae5b0faeb9ac",
+      "source_blob": "b1cc94d38acba4e7df8fc9aa438df9492464d6cc"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/reconcile_state_admission_test.go",
+      "sha256": "215c7dae1a9a32a0f1dc66a67642613d3f6ad30f29e76803ae2e6cf2ddd179be",
+      "source_blob": "f1d4b097abeb355da0997720950c0c1a484e5578"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/reconciliation_overlap_test.go",
+      "sha256": "4eb222da3ad28f5c01c7d37bd10c7cbf6cb1f076cbc4f0c19b95939e862a3dd3",
+      "source_blob": "ac78f134f7ada02f1b8a26d661a0ec27ef02ccfa"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_backup.go",
+      "sha256": "8deb99a15f1ea1f0366f17812642ae9b9d5e2e8dd46e886cf8886e99e04827a9",
+      "source_blob": "a3db359e4ae0b08df8a5603213ddfd0aa35b6e6e"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_config.go",
+      "sha256": "7ee762fc6eb8ab44d1f90fe6d321d99cbe0944ba4c0562f6b3782f7fe2392d21",
+      "source_blob": "86f13e1f130a8f2025b8d38ca447e9426cd16714"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_action.go",
+      "sha256": "b9ba0d876579a08c6814fe071c76173691a71dc64b4d92a9380442865bec38a9",
+      "source_blob": "25ec6b1f572b1de6cb51fdc5c8813324f7f87a94"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_active_fence_test.go",
+      "sha256": "e09c8c40cc075ca38cb08ecd95f2f8a1456ce95497c852a1146a94dc7f6c69de",
+      "source_blob": "a14c0ea05449e4cb89cb6b568c39c1130cca7508"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_async_owner_cancellation_test.go",
+      "sha256": "cfca289af87140eb787e3b06c1e0a4eb6841259344c898c97683aae104cd1a81",
+      "source_blob": "b70fdd2d471215136c3f23ad501c27bdf96f5019"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_auto_action.go",
+      "sha256": "d806dde653eb4fdd24d0caa4fded53cbfe775ee4c5b581d998c56cd106a7b3a2",
+      "source_blob": "656d091a8fd89befc897f45d0e35907bcf157e05"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_auto_config.go",
+      "sha256": "1a4bc0c4c385e441d2a807a03a170c6400641e895125c5470ded2b8eebfd10ef",
+      "source_blob": "9d552554fae9732247b9db67c207fef6dbbace51"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_auto_decision.go",
+      "sha256": "10f5d5177e094c70a1822454cbe8b0ff49572d818eb0e8fe1fece7b0c95720e2",
+      "source_blob": "a5c043e52cebc92a5e115445a49de6453c52d7c5"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_auto_intent.go",
+      "sha256": "18e180c6cc672a87d05697ce3650d9ae6f519ac28b0b21fe2a6ebde9ae82e7d1",
+      "source_blob": "e59ea71b8574b1590f92c03ee5be5d3c595541f6"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_auto_loop.go",
+      "sha256": "958cc2f1ac15ce74b8f6a35bcfc518a8aeed04ce88116101bfd729484e123b8c",
+      "source_blob": "9a47cbce5c16a4936be54593010168865eaca114"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_auto_negative_test.go",
+      "sha256": "b9e3dc08f3ebc1d0c416d272a2cbad953b36b3946e96ffe5f19e77ff3d78603e",
+      "source_blob": "18a6fb41699006d872f54dc38aaa80fd52ee71c8"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_auto_status.go",
+      "sha256": "2ab9bc04fe3868532bfbfcc115818a1b6737e61d5c277f9f0eb13becb34c8fde",
+      "source_blob": "17de9f56582f7821f20cd0c35c76bf4177ea5e6f"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_auto_test.go",
+      "sha256": "e2ed899e44d9927e74cc0c3fd9369701249163afda61901c62421372a9ec7b57",
+      "source_blob": "ac2ce695ee03ff13331a5a8377f104b1a6bdb695"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_complete.go",
+      "sha256": "7a22a2f4bbaf187f48f6df1f601ea8c34e4fa09212dd108876357080a59b5413",
+      "source_blob": "cbe6db18643f46e0d366a4f828add6a80cf62e80"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_controller_lock_integrity_test.go",
+      "sha256": "77c36c48022d9d034ef8b4281b8b1fcd0a3df64f76a988a51fcce7c0f6032995",
+      "source_blob": "ed62ded965ddf4f4eea05ea71c275c669ee9aa25"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_error.go",
+      "sha256": "fd61b31e577ef114ca00d098ce82941a92dfd63494f3288e1f6f387f8ae192a3",
+      "source_blob": "5a45d650d7556c35da094c0b4c6bfe55a807337d"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_fence.go",
+      "sha256": "000f8306a7391bc9523da94f921b9204559fa6d970fa1cccd678b80eed01858a",
+      "source_blob": "e13756e3351952db659fbea159a31f0e9e3ba06c"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_fence_lease_race_test.go",
+      "sha256": "b720641d24f132c8d219ae63b0b5f948da81ac0f9a2f7cabedc56375e4aa77de",
+      "source_blob": "02139b69fcb67009a0fd7ab3a83ad02208dd02de"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_final_custody_test.go",
+      "sha256": "81f126dfcb57986ac62081c7926f4ce1688bd483edfe84cad695c7ef97c2d5cc",
+      "source_blob": "12b4d63ce0cdc21a9255e79674a25ad4eaee94e6"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_kubernetes_leader.go",
+      "sha256": "e65fa5963490c220d419eb753fd9b7d291119994a8d4d640e57a1f056c7246e8",
+      "source_blob": "87a7e01c49f47506251e1d5d08755d100afd049c"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_kubernetes_leader_test.go",
+      "sha256": "13d884b3c395195e7f2e71202fc7baa615a3c59ef34354c73e89ac2329667e6b",
+      "source_blob": "c62424e9e033899a16c1e9ed504a25fe073b7d67"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_leader_watchdog.go",
+      "sha256": "6b89889f17acaedeaa2c9df2d799aa7262424a43363ccc484a3baec153ed66a6",
+      "source_blob": "e3f589d4c5b1545ba99abdf68d3c98152535848a"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_leader_watchdog_test.go",
+      "sha256": "0b132c06d9559170baaf86c8db00ee41bfcccb1b78728360bfb542ff284b0677",
+      "source_blob": "a85a26f1e95ff59a2532ecc00ce63c90b10b2f75"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_lineage_test.go",
+      "sha256": "bd820ba99b4d29f19c6a6c0a07ababa67c9baaa8005970a3a042685dcd8f9ea1",
+      "source_blob": "799cc397f903ce42a1870b7859cae6d8c26d4d9b"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_pvc_binding_test.go",
+      "sha256": "5e9236bcb9c78511545e6602c585d12d1e91dd8b4617009689c209d16f8b8ae5",
+      "source_blob": "4ba0d7d71868353735d2955fd43c32a9d280ea2b"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_signed_proof_race_test.go",
+      "sha256": "134c5978f0fdf2762070d1627fee34cc5cce031a40524a16244cffafedf22951",
+      "source_blob": "3d5628269b79d0ae2ea9ab35167ab7a108a55482"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_status_freshness_test.go",
+      "sha256": "c252d583573345c087530d678e1dcfd7fbeedaca9b467b5d6170709b18d87440",
+      "source_blob": "6a252d5a60b7935ac1f0a3da163b2e3ef5ce96b7"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_storage_probe.go",
+      "sha256": "e53243a23d7902242ddeb65d7c3ab49b24da9bcbc32cbd19d463c1e2b91ce6bb",
+      "source_blob": "fd3ee4153b126502cd45415a987309d3313bbf9e"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_storage_probe_test.go",
+      "sha256": "2146aeb50da38ddc395a804a3513bbdee230e713dbc3173494307e9ec35bf86a",
+      "source_blob": "9abed51d6b0fee2f5085d73175b9ff14ea46e41f"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_velero.go",
+      "sha256": "81bec723269657a64dc02ba80f6919688bd954fc09c6485ae12008a0d7205fae",
+      "source_blob": "2306df66639b0e8a55167f97456f3abdf8fa5550"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_watermark_test.go",
+      "sha256": "eead2d6a5da99a2594b98adb9aecc4f30d1c23afe60037dd0bed48a43b0a6834",
+      "source_blob": "96591496441bc7aa27bd0ca4c2702e870344dd40"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_workflow_test.go",
+      "sha256": "85360e253312ff00a3ba60d1996da980d708b2662d99b1bc82ef2518c8a92b67",
+      "source_blob": "37906ebe502ec4b1dc00581c2c706bff51e39f07"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_workload_rpo_test.go",
+      "sha256": "80216fb58504dd6c148395e715cd4513d7b5f110d79228c62fa8e4224af99f25",
+      "source_blob": "937c139d4f9b06728afc914d7878662cdab36d8a"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_portal.go",
+      "sha256": "3c6d1bbdca9017a62f1ee5cf9021bc1be451a7ea8a6a99c20de36bbbbc81300d",
+      "source_blob": "073f6ce6ad8e426abdc1e1e511f7449ac6c531ae"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_test.go",
+      "sha256": "a1bffea28a112adf646cff37b77880ede05115154d0876844ac3b3b12ff1a159",
+      "source_blob": "8867e0beeacd29fc13504286f65d798d4b307f71"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/release_gate_negative_test.go",
+      "sha256": "8438fc1172f8dc6775b97aca5e526229727980f43f212c13c82b5b1546107b2f",
+      "source_blob": "22c1751db1a5e3b9c23e544f80a2552a411cebb7"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/version_pin.go",
+      "sha256": "c71e3dc1679dcd5c9c4967a96194234975f766b2afec5edb136ce5af33d9759a",
+      "source_blob": "d9a8e0ecc6577b648c89e3e3013b6718ad551a20"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/version_pin_test.go",
+      "sha256": "af76a63980bb1f51f38963746b63378cb66e1cbb9f823f5296209987b4172c17",
+      "source_blob": "1144a7d98b3fd43e6fffe2a6ee0492e77ed07889"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_boundary_test.go",
+      "sha256": "ab29526aceaea8381b65b9782bc945719b6b7270b1d555a20bc90150e34a1c6b",
+      "source_blob": "1cee70b6aedaf937a3f8465cc73dcf55c0f607b3"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_operation_linux.go",
+      "sha256": "5124cb45a35a5c303883d79611d1cf01aced5b67e1b33ec4cd2baadc831d4744",
+      "source_blob": "b78f3f1f86eeeb68fa3a780719b4c70ad7a3087a"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_operation_linux_test.go",
+      "sha256": "df4931ff4b0e708bccceaf475834b1ec5a033e377e4b37d21636412457b7cc27",
+      "source_blob": "c91276075f91b1661c5c81676034cd53b754111f"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_successor_linux.go",
+      "sha256": "d00998b021e474c1833cb7bf8c9429d9c7ea166d0b985cdb5234c272eb35ac85",
+      "source_blob": "baf276210391950470b6a5d8e7ceb22b7cf7add0"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_successor_linux_test.go",
+      "sha256": "81d38567c6218be7620c2e3f3a5fdcbbec82814c0e0347b885467335918e276e",
+      "source_blob": "64093bc1abb9828a23b6b25d385e4da210c951d2"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_successor_portal_linux.go",
+      "sha256": "74d13a37d43ee1b6e5f1a9d371249633f135f446b350ea807f09b0aaf95c7e46",
+      "source_blob": "d4f3878506b4c889dcac3dc5fd89098a2d4be2ce"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_successor_portal_linux_test.go",
+      "sha256": "e78ed703137f441641a8fd36882dcc9110ab2ea217e000bc122aa1016b6646fd",
+      "source_blob": "c433aa959fe6749e40b025f9a7ab366b71f951dc"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_successor_portal_other.go",
+      "sha256": "2dfb4b9326376f7e5b4b7a5424659d8724fadaf09724f25d6193c9d35f3c2bba",
+      "source_blob": "2079cc6b23c57310abad66baea374346c9867fb2"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_successor_scope.go",
+      "sha256": "a82c17cf72c292b3d0a42884b67b149647eb6adad4608eca5f21784f47dd4d1d",
+      "source_blob": "4e9b3a257e775793c37bea2ce45a79d3bd94dc41"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/workspace_suspension_test.go",
+      "sha256": "8bbbf2a9da3c6dc1ef5f333a463c31fa454fc71526181eb4466d6199858af256",
+      "source_blob": "7e9926d5f3b34c6b43828ead45d9d4978fb53502"
+    },
+    {
+      "path": "internal/kubeone/namespace_test.go",
+      "sha256": "1cc8ca16abff5391ce2f4bad15a465dca66dff7f0cade7372d0cb4bfca1975e7",
+      "source_blob": "6f535e96248946fec9b7fe4ad65707570f09fcce"
+    },
+    {
+      "path": "internal/kubeone/node_identity_readback_test.go",
+      "sha256": "f998a85890e6a0f6ee34f645ef5ef8b932b54e70de9e6f00c7c88fd8745691df",
+      "source_blob": "c32f5563e494cdca67673de5a73c516350f17e2f"
+    },
+    {
+      "path": "internal/kubeone/portal.go",
+      "sha256": "337b0576626cabada24bc349eb2b60acafbcaf113e27a2803a52a0265d5d66dc",
+      "source_blob": "f84b393e11f78952f9c4242bfab13683ef008eaf"
+    },
+    {
+      "path": "internal/kubeone/portal_test.go",
+      "sha256": "7907ed95e2bc5f7d979f012d0b81c5836e2b1b5cd1f84f6a8dd41b400ce45ed3",
+      "source_blob": "6e410fe7aa90ba760159cb8bc511f5caa3c885aa"
+    },
+    {
+      "path": "internal/kubeone/readiness_response_test.go",
+      "sha256": "f11130113bc75a1fe11b258699d542f75ca8df1349b4cd621837522ad628a151",
+      "source_blob": "1c98d146772292943e2cabb86f3658339602908f"
+    },
+    {
+      "path": "internal/kubeone/statusreadback/inventory.go",
+      "sha256": "d3de41ed09181450dafcffc9629449a8b4a9d27d2b530a3788bb8b35dda37715",
+      "source_blob": "bff936b503b74884dab91acaade549547dffca51"
+    },
+    {
+      "path": "internal/kubeone/statusreadback/inventory_test.go",
+      "sha256": "0db6c61a3a5df381bbcb5979dac09b4dfdc4f90f84f224232b521e763461cb0a",
+      "source_blob": "b9623eb28e2e556489f03460db67ab0b29673551"
+    },
+    {
+      "path": "internal/kubeone/statusreadback/namespace_identity.go",
+      "sha256": "2ab2630fa8b765ad5df3fa77f7e95d933a01177f1b8679e4e224ff9f5b320863",
+      "source_blob": "7830bb4ba7285f936d48375cef6e7adb96680718"
+    },
+    {
+      "path": "internal/kubeone/statusreadback/namespace_identity_test.go",
+      "sha256": "148f5c5a92a5b272d71f7c2b384313f0539b369b03c2dad315db9b482ca1c0da",
+      "source_blob": "fab959839e47265ffdd11c95e6ef3c9075b202d6"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/attribution_linux.go",
+      "sha256": "f7db826435be2888f4504fef796fb50dd48b9aee29a17602ae04c7ab960a078c",
+      "source_blob": "e7e161de10f073c58175864411f7cb74a62fdde5"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/attribution_linux_test.go",
+      "sha256": "014f38615b812cb74c31c99874725788efa8b0b1f73e3e439efb4d364ad4ed97",
+      "source_blob": "65a5ee9b13241e2bf13405f30eb85ef9f8ee09b6"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/custody_linux.go",
+      "sha256": "1b325bdf542be31f1d571f3026de160d1d9d3bd67fdfe26da28283881b909b48",
+      "source_blob": "cc756cad65c9d45d8df4965a50ad4f4a803fffe3"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/custody_linux_test.go",
+      "sha256": "0eae7a0875eaf785aebc560093704962393d2eb7bbee35137277b6baf9d6c7ac",
+      "source_blob": "8f76c6e9f2c4ea60f5bb529595dda6809836d638"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/manifest.go",
+      "sha256": "ec8ddbd8e482c519f31c2fbda7d164def953aaa2ab56b48170c7d247f6c988df",
+      "source_blob": "9e24aedeea9cd6769f676ab44baac23b3e35cff3"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/manifest_test.go",
+      "sha256": "1426b155ea2876e92feef25ffd264f676d8eabfac76eb13d8df42c993fa63bf7",
+      "source_blob": "7f7bc80cf4047059849dcddcfe85ba5cb44ed644"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/operation_linux.go",
+      "sha256": "eee555e6a66d508a489f105e010458c8c56b75a2f07905db33a2c24c004390c4",
+      "source_blob": "75de1715106138a72b507653d2eda678dc2001a9"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/operation_linux_test.go",
+      "sha256": "4f825b553886e7127df50d25a0e96c578d3e2bd502cbedcdb56d1c4590d79d09",
+      "source_blob": "ee868103715262bffeb03e510bf3e7a2720a24b1"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/protocol.go",
+      "sha256": "42fffb0360b18ac8b726ab9a7c1816d5b69e7334f95012330c8fd5461fb60ac2",
+      "source_blob": "c27abe26cc12a57a5ad64b43d3b3b7279ce1e879"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/protocol_test.go",
+      "sha256": "202b24b6114387b76ae98f55b7d86ce94d4bf4f7b03df7a63f0e23e5536a5946",
+      "source_blob": "b4b896e2992c76f4e6015a0693af3329914797cb"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/testdata/original-manifest-projection.json",
+      "sha256": "0e6a4c9510383560bf7b16ffe177285a885edc8f3235072c557b3b6e04da5bfb",
+      "source_blob": "35ac8832388c729e9ee0a7e4f65652382a7fb325"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/transport_linux.go",
+      "sha256": "f3038d12e072f4ed8952b484f4651727f25aa858cff6933a618a95a2b0965bb7",
+      "source_blob": "f22b91eb09b9691e88ce0648b35c06bb774ad3a8"
+    },
+    {
+      "path": "internal/kubeone/workspaceproof/transport_linux_test.go",
+      "sha256": "17486f032b94d7e7d177544848da40d7a75aa25ab7b6ef47e552cfec39df3475",
+      "source_blob": "5cc9b8d8f188e76eb1c0fca000197df5d45a40b6"
+    },
+    {
+      "path": "internal/platformapi/application.go",
+      "sha256": "9f8aa2780e4cc11f546e2743c9933458fa22853b5325c50a62b09c332a52a249",
+      "source_blob": "e76313c00f328d1e0797aa838e887143ac250231"
+    },
+    {
+      "path": "internal/platformapi/application_test.go",
+      "sha256": "c22db195a99ea8a8c8ec41cbafea4924f0c1f3a6b139d51ebbca0925c003a02c",
+      "source_blob": "16047b1698d6fbafec1131304a0efb6b3d395d32"
+    },
+    {
+      "path": "internal/platformapi/auth.go",
+      "sha256": "9ce146bc4de3e9b9d7e204e3ac090d60730110515ea30c60d107a93526b9c220",
+      "source_blob": "b30f45d215b708b28fcc8aedf7f43e644074602b"
+    },
+    {
+      "path": "internal/platformapi/auth_ambiguity_test.go",
+      "sha256": "5b79b82dd794816ac57e28fb1c55db4d33ad4d4fd8dc55c428e0b8b714d0d0db",
+      "source_blob": "4440bdd3811088b78f203becf3cea3a2c9900c48"
+    },
+    {
+      "path": "internal/platformapi/auth_security_test.go",
+      "sha256": "bef4a47c61e69c4dce5cfd2940ab689b2b75ef69dd4ff69de78caf6de2c4eb8f",
+      "source_blob": "ca29b67be510d243f7fc8320033475c263870b57"
+    },
+    {
+      "path": "internal/platformapi/auth_workload_test.go",
+      "sha256": "9bbb0862218b4d7f45fc8258e2a3e6b30509a8b17238bdb85ec15eb61b061459",
+      "source_blob": "939f5d8406bff6209215a051dcf75ff8cb905b39"
+    },
+    {
+      "path": "internal/platformapi/gateway_certificate_pins.go",
+      "sha256": "d94ac447ead888e06bb8ec617782c1cd5335efe3e3ff752aaf48aed9ad19fc3a",
+      "source_blob": "3391911750cedbb37fc66b2303301c0f58bfec99"
+    },
+    {
+      "path": "internal/platformapi/gateway_certificate_pins_test.go",
+      "sha256": "fba112a3a10c5f69f0573aab7220d95957a2490fc4ffe88a6768d075e9d11c87",
+      "source_blob": "3290de672a67c8f4bc9a25ce230b79571c15c7c7"
+    },
+    {
+      "path": "internal/platformapi/mtls_integration_test.go",
+      "sha256": "2fb3f44808c917455be166a6fb1e996de76a01c16f5d0e9d72028e2de0ea08a7",
+      "source_blob": "a4301089b1c1dc4ab9ed2cf649a7625965b8573d"
+    },
+    {
+      "path": "internal/platformapi/server.go",
+      "sha256": "ddf41b9573929a7dd8ab25a82ec060f5a2c1308002bc2b824de5b282d7b26695",
+      "source_blob": "bb4ed97bb4894aed93898f0dfde7f59f36df4964"
+    },
+    {
+      "path": "internal/platformapi/server_security_test.go",
+      "sha256": "a8ea8b35f3bc990a4a4dee86907c7f123937983841981b388c617277c936889c",
+      "source_blob": "16210661e86612c70e0062a75b2fa46f489cfe82"
+    },
+    {
+      "path": "internal/platformapi/server_test.go",
+      "sha256": "d64726912f592c7989a9bcf2f0b1b0767200e0f3e5e432662e7a9f600dc11a27",
+      "source_blob": "eff87f2b4697fea516bcb3e3c0de1cc5ef2867a8"
+    },
+    {
+      "path": "internal/qualification/testgateway/README.md",
+      "sha256": "a5b5307a47d41be4be7578d59aab6fbbdfbe3cb9591305295315c1fd3d3690c4",
+      "source_blob": "4e170ae718fdfa1a24cd9952c008c10da7caf0a8"
+    },
+    {
+      "path": "internal/qualification/testgateway/bootstrap.go",
+      "sha256": "a1f4ecccb180fa650017b553749e9b5734847a14d6da16f3fedbb78feb537032",
+      "source_blob": "aee7b156aa1ebfb1c85c30e160d2f2260628eb85"
+    },
+    {
+      "path": "internal/qualification/testgateway/gateway.go",
+      "sha256": "82a5bc66b98587cbe59ba99d6ab3a2aa2723f2f4f8df155c3ec47054fd55cf48",
+      "source_blob": "73533fc3499f953b2b142128152a57117a4dba86"
+    },
+    {
+      "path": "internal/qualification/testgateway/gateway_test.go",
+      "sha256": "c6909f74ccef1ace15a8689fd7d687a4b1d5ed892c8a21dbac9fd7120912ad6d",
+      "source_blob": "ec4f9d806cddee9d0c306717cc6ef86f8448d9b4"
+    },
+    {
+      "path": "internal/qualification/testgateway/installed_test.go",
+      "sha256": "604d4886f1348c5d8eb5ae6eafb730d60ac722a1f0fc99c8ea431e69bc687f49",
+      "source_blob": "aaa7ebfbc9281a1bf26f43a90cf3a11762152910"
+    },
+    {
+      "path": "internal/qualification/testgateway/owner.go",
+      "sha256": "adaccc764d0fad58ba135022004eb2e34e3fc6123166d4d241ab032e37826b93",
+      "source_blob": "ed2fc454ede22869a99ff28e3603f762612f2619"
+    },
+    {
+      "path": "internal/qualification/testgateway/stepup.go",
+      "sha256": "d20fff7b0f230f4e3967bac677c14d3a7318649f53b8d0b572671c9817b2c7bc",
+      "source_blob": "b1b8e5a22337773d6185cd8a48c19c3dc3647ca1"
+    },
+    {
+      "path": "internal/qualification/testgateway/stepup_test.go",
+      "sha256": "e7e030c936fb20ab28bbe97e2359a77ffa638466e6383cb15077d05aa8df2662",
+      "source_blob": "8f54db53a7214790321c2c8df147f1b8ec4ec613"
+    },
+    {
+      "path": "internal/qualification/testgateway/tenant_admin_test.go",
+      "sha256": "5ee944cede8222c287d026a2f7575d6cf08a2db7c0f5a0b83b2dbe9d0540cf76",
+      "source_blob": "d7e7c730ed3fc19f7ac8a5e64f5a851ce58b5a9f"
+    },
+    {
+      "path": "internal/secureconfig/secret.go",
+      "sha256": "d55fed7f8b139178277de8c849561a5fd78f6775d80f06e07c76c4ecf606f758",
+      "source_blob": "a3ae039e4e13312922747ea5e3df2194d82ef1fa"
+    },
+    {
+      "path": "internal/secureconfig/secret_test.go",
+      "sha256": "4d820bfb7f63a0f104da984c395769b8a8b00a7450fbfe1557af0373bea3514d",
+      "source_blob": "35ee51a6230b381b9a7603ca43d71211b1fa98b9"
+    }
+  ],
+  "qualification_derivative_only": true,
+  "not_byte_identical_to_private_release": true,
+  "sanitization": {
+    "scope": "lab endpoint and synthetic fixture address literals only",
+    "wire_fixture_octets_updated_consistently": true,
+    "production_deployment_authorized": false,
+    "private_history_and_operational_evidence_excluded": true,
+    "example_ssh_host_public_keys_replaced_with_new_test_keys": true
+  }
+}

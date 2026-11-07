@@ -1,0 +1,66 @@
+{
+  "apiVersion": "kubeone.k8c.io/v1beta2",
+  "kind": "KubeOneCluster",
+  "name": "layersentry-kubeone-dc",
+  "versions": {
+    "kubernetes": "v1.36.5"
+  },
+  "cloudProvider": {
+    "none": {}
+  },
+  "controlPlane": {
+    "hosts": [
+      {
+        "privateAddress": "10.254.200.21",
+        "publicAddress": "10.254.60.93",
+        "sshHostPublicKey": "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNeOrLwgCzKlF81BjWOI3bR0eidFr0s5cn+OPu2uwpFHjlLQ2T5hqGYtwc6ckCoxa1S0CGYmTq2HAGMsXcl8J6c=",
+        "sshPort": 22,
+        "sshPrivateKeyFile": "/var/lib/layersentry/kubeone/lab-dc/kubeone-dc/ssh-private-key",
+        "sshUsername": "ubuntu"
+      },
+      {
+        "privateAddress": "10.254.200.22",
+        "publicAddress": "10.254.60.94",
+        "sshHostPublicKey": "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMWmF4QuwdqkpFlis79jcrGayX4ObfqVW6Pfsfmdn1BB935x4oioAtgqOpqw8lHEWL+IHNLvEHqDz78z5GrGteI=",
+        "sshPort": 22,
+        "sshPrivateKeyFile": "/var/lib/layersentry/kubeone/lab-dc/kubeone-dc/ssh-private-key",
+        "sshUsername": "ubuntu"
+      },
+      {
+        "privateAddress": "10.254.200.23",
+        "publicAddress": "10.254.60.95",
+        "sshHostPublicKey": "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBPgeXH3maSkww2JpYgD0l4FeoCz+FJLBKSnPdz/DlS8uF2f7+p4xjSSD0spL5cf+XHsDklVyy8egDDRjGjeZ+/M=",
+        "sshPort": 22,
+        "sshPrivateKeyFile": "/var/lib/layersentry/kubeone/lab-dc/kubeone-dc/ssh-private-key",
+        "sshUsername": "ubuntu"
+      }
+    ]
+  },
+  "apiEndpoint": {
+    "host": "10.254.200.10",
+    "port": 6443
+  },
+  "clusterNetwork": {
+    "podSubnet": "10.244.0.0/16",
+    "serviceSubnet": "10.96.0.0/12"
+  },
+  "machineController": {
+    "deploy": false
+  },
+  "loggingConfig": {
+    "containerLogMaxFiles": 5,
+    "containerLogMaxSize": "100Mi"
+  },
+  "staticWorkers": {
+    "hosts": [
+      {
+        "publicAddress": "10.254.60.96",
+        "privateAddress": "10.254.200.31",
+        "sshUsername": "ubuntu",
+        "sshPort": 22,
+        "sshPrivateKeyFile": "/var/lib/layersentry/kubeone/lab-dc/kubeone-dc/ssh-private-key",
+        "sshHostPublicKey": "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBP+eFS6yPUtFaJXkkR//Pg91X7D19OzM/OxTRZ13WLl3+k4MuOgNFyZCSP7MOve5pis/G2eLlCI+Fng70ifW68k="
+      }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+name: Public KubeOne source qualification
+
+on:
+  push:
+    branches: [qualification/public-actions-check-20261108]
+    paths:
+      - qualification/kubeone-dr-source/**
+      - .github/workflows/public-kubeone-source.yml
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    if: github.repository == 'adaptgurus/layersentry-flux-catalog' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.26.8'
+          cache: false
+      - name: Verify public source digest manifest
+        working-directory: qualification/kubeone-dr-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYVERIFY'
+          import hashlib,json
+          from pathlib import Path
+          m=json.loads(Path('SOURCE_PROVENANCE.json').read_text())
+          assert m['qualification_derivative_only']
+          assert not m['private_history_included']
+          for entry in m['files']:
+              p=Path(entry['path'])
+              assert not p.is_absolute() and '..' not in p.parts and p.is_file() and not p.is_symlink()
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==entry['sha256']
+          print('PUBLIC_SOURCE_MANIFEST_VERIFIED',len(m['files']))
+          PYVERIFY
+      - name: Run protected-source tests on isolated hosted runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo install -d -m 0700 /opt/layersentry-public-source
+          sudo cp -R qualification/kubeone-dr-source/. /opt/layersentry-public-source/
+          sudo chown -R root:root /opt/layersentry-public-source
+          sudo env PATH="$PATH" GOTOOLCHAIN=local GOMAXPROCS=2 bash -c '
+            set -euo pipefail
+            cd /opt/layersentry-public-source
+            go test -p=2 -count=1 ./...
+            go test -p=2 -count=1 -race ./...
+            go vet ./...
+            go build -o /opt/layersentry-public-source/portal-qualification ./cmd/layersentry-kubeone-portal
+          '
