@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"regexp"
@@ -68,6 +69,9 @@ type DRSignedCompletion struct {
 // The routed endpoint is the registered public workload route for BOTH
 // directions; ActiveWriterClusterID binds which site now serves it.
 func verifiedDRCompletion(p DRExecutionProfile, job DRTransitionJob, now time.Time) (DRCompletionProof, string, error) {
+	if !drRestoreIdentitiesBound(job) {
+		return DRCompletionProof{}, "", fmt.Errorf("%w: original restore identity binding is unavailable", ErrValidation)
+	}
 	if err := protectedRecoveryFile(p.RecoveryVerifierPublicKeyFile); err != nil {
 		return DRCompletionProof{}, "", err
 	}
@@ -215,20 +219,29 @@ func verifyConservativeDRWorkloadRPO(v DRCompletionProof) error {
 	return nil
 }
 
-// validateRecoveredPVC requires that the live, Bound application PVC is the
-// exact claim Velero wrote for this operation's own Restore object. A claim
-// re-provisioned empty under the same name after restore is not recovered data.
-func (m *RecoveryManager) validateRecoveredPVC(ctx context.Context, ws Workspace, p DRWorkloadProfile, step DRRestoreStep) error {
+// validateRecoveredRestore requires every live Restore, including stateless
+// workloads, to retain the UID returned by the original native create. For a
+// stateful workload, its Bound PVC must also be the claim that restore wrote.
+func (m *RecoveryManager) validateRecoveredRestore(ctx context.Context, ws Workspace, p DRWorkloadProfile, step DRRestoreStep) error {
+	if step.State != "RESTORE_COMPLETED" || !validDRRestoreUID(step.RestoreUID) ||
+		step.Namespace != p.Namespace || step.Kind != p.Kind {
+		return ErrValidation
+	}
+	if err := drVolumeRestoreQualification(p); err != nil {
+		return err
+	}
+	restore, err := m.observeVeleroRestore(ctx, ws, step.RestoreName)
+	if err != nil || restore.Metadata.UID != step.RestoreUID || restore.Spec.BackupName != step.BackupName ||
+		len(restore.Spec.IncludedNamespaces) != 1 || restore.Spec.IncludedNamespaces[0] != p.Namespace ||
+		!drKopiaRestoreSpecValid(p, step.RestoreName, restore) ||
+		restore.Status.Phase != "Completed" || restore.Status.Errors != 0 || restore.Status.Warnings != 0 ||
+		restore.Status.CompletionTimestamp.IsZero() {
+		return ErrValidation
+	}
 	if p.Kind != "STATEFUL" {
 		return nil
 	}
-	restore, err := m.observeVeleroRestore(ctx, ws, step.RestoreName)
-	if err != nil || restore.Spec.BackupName != step.BackupName ||
-		len(restore.Spec.IncludedNamespaces) != 1 || restore.Spec.IncludedNamespaces[0] != p.Namespace ||
-		restore.Status.Phase != "Completed" || restore.Status.Errors != 0 || restore.Status.Warnings != 0 {
-		return ErrValidation
-	}
-	return m.verifyVolumeRestoreEvidence(ctx, ws, p, step.RestoreName, restore.Metadata.UID)
+	return m.verifyVolumeRestoreEvidence(ctx, ws, p, step.RestoreName, step.RestoreUID)
 }
 
 func (m *RecoveryManager) recoveredPVCUID(ctx context.Context, ws Workspace, p DRWorkloadProfile) (string, error) {
@@ -375,8 +388,8 @@ func (p *Portal) finalizeDRTransitionWithProof(ctx context.Context, ws Workspace
 		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("automatic recovery target all-node readiness unavailable"))
 	}
 	for i, workload := range profile.Workloads {
-		if err := p.recovery.validateRecoveredPVC(ctx, actualTarget, workload, job.Steps[i]); err != nil {
-			return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("recovered stateful PVC identity/Bound not verified"))
+		if err := p.recovery.validateRecoveredRestore(ctx, actualTarget, workload, job.Steps[i]); err != nil {
+			return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("recovered workload Restore/PVC identity not verified"))
 		}
 		if doc.Version == 2 && workload.Kind == "STATEFUL" {
 			// The independent fsync attestation must bind to the *current*

@@ -19,24 +19,26 @@ import (
 
 type drNativeRunner struct {
 	*recoveryFakeRunner
-	mu                 sync.Mutex
-	restored           map[string]nativeVeleroRestore
-	restoreCalls       int
-	modifierCalls      int
-	backupUID          string
-	drKubeLeader       *drFakeKubernetesLeaderRunner
-	failRestore        bool
-	dirtyTarget        bool
-	unhealthyPVC       bool
-	sourceDown         bool
-	healthReadDelay    time.Duration
-	drDown             bool
-	workerUnreadySite  string // test-only: one worker goes NotReady after restore
-	staleBackup        bool
-	backupStartedAt    time.Time // zero: started one second before completion
-	autoRootCA         bool
-	foreignConfigMap   bool
-	onRecoveredPVCRead func()
+	mu                  sync.Mutex
+	restored            map[string]nativeVeleroRestore
+	restoreCalls        int
+	modifierCalls       int
+	backupUID           string
+	drKubeLeader        *drFakeKubernetesLeaderRunner
+	failRestore         bool
+	dirtyTarget         bool
+	unhealthyPVC        bool
+	sourceDown          bool
+	healthReadDelay     time.Duration
+	drDown              bool
+	workerUnreadySite   string // test-only: one worker goes NotReady after restore
+	staleBackup         bool
+	backupStartedAt     time.Time // zero: started one second before completion
+	autoRootCA          bool
+	foreignConfigMap    bool
+	onRecoveredPVCRead  func()
+	afterRestoreCreated func(string) // called under mu, after create response is encoded
+	beforeRestoreRead   func(string) // called under mu, before native GET readback
 	// Backup CR replaced (same name, new UID) after the first N reads.
 	backupReads, swapBackupAfterReads int
 	swapBackupUID                     string
@@ -140,6 +142,9 @@ func (r *drNativeRunner) Run(ctx context.Context, dir, binary string, args, env 
 				name = args[i+1]
 			}
 		}
+		if r.beforeRestoreRead != nil {
+			r.beforeRestoreRead(name)
+		}
 		v, ok := r.restored[name]
 		if !ok {
 			return CommandResult{}, ErrValidation
@@ -148,7 +153,13 @@ func (r *drNativeRunner) Run(ctx context.Context, dir, binary string, args, env 
 		return CommandResult{Stdout: string(raw)}, nil
 	}
 	if strings.Contains(joined, " create -f ") {
-		payload, err := os.ReadFile(args[len(args)-1])
+		file := ""
+		for i, arg := range args {
+			if arg == "-f" && i+1 < len(args) {
+				file = args[i+1]
+			}
+		}
+		payload, err := os.ReadFile(file)
 		if err != nil {
 			return CommandResult{}, err
 		}
@@ -196,7 +207,11 @@ func (r *drNativeRunner) Run(ctx context.Context, dir, binary string, args, env 
 		v.Status.Phase = "Completed"
 		v.Status.CompletionTimestamp = time.Now().UTC()
 		r.restored[v.Metadata.Name] = v
-		return CommandResult{Stdout: "restore created"}, nil
+		raw, _ := json.Marshal(v)
+		if r.afterRestoreCreated != nil {
+			r.afterRestoreCreated(v.Metadata.Name)
+		}
+		return CommandResult{Stdout: string(raw)}, nil
 	}
 	if strings.Contains(joined, " get podvolumerestores.velero.io ") {
 		name := ""
@@ -252,7 +267,13 @@ func (r *drNativeRunner) Run(ctx context.Context, dir, binary string, args, env 
 		raw, _ := json.Marshal(map[string]any{"items": items})
 		return CommandResult{Stdout: string(raw)}, nil
 	}
-	for _, resource := range []string{"pods", "persistentvolumeclaims", "deployments.apps", "statefulsets.apps", "services", "configmaps", "secrets"} {
+	if strings.Contains(joined, " get secrets -o name") {
+		if r.dirtyTarget {
+			return CommandResult{Stdout: "secret/old-writer\n"}, nil
+		}
+		return CommandResult{}, nil
+	}
+	for _, resource := range []string{"pods", "persistentvolumeclaims", "deployments.apps", "statefulsets.apps", "services", "configmaps"} {
 		if strings.Contains(joined, " get "+resource+" -o json") {
 			if r.dirtyTarget {
 				return CommandResult{Stdout: `{"items":[{"metadata":{"name":"old-writer"}}]}`}, nil

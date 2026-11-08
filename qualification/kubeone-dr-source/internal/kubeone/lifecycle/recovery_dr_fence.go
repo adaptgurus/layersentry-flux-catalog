@@ -135,31 +135,53 @@ func (m *RecoveryManager) drExecution(tenant, source, target string) (DRExecutio
 	return DRExecutionProfile{}, false
 }
 
+// The top-level journal version is deliberately rejected by older readers.
+// A nested UID alone would be silently ignored by the previous JSON decoder.
+const drRestoreIdentityVersion = 1
+
 type DRRestoreStep struct {
 	Namespace          string `json:"namespace"`
 	Kind               string `json:"kind"`
 	BackupName         string `json:"backup_name"`
 	SourceBackupUID    string `json:"source_backup_uid"`
 	RestoreName        string `json:"restore_name"`
+	RestoreUID         string `json:"restore_uid,omitempty"`
 	ExpectedDataSHA256 string `json:"expected_data_sha256"`
 	State              string `json:"state"`
 }
 type DRTransitionJob struct {
-	ID                  string          `json:"id"`
-	ClusterID           string          `json:"cluster_id"`
-	TargetClusterID     string          `json:"target_cluster_id"`
-	Direction           string          `json:"direction"`
-	Status              string          `json:"status"`
-	FenceProofSHA256    string          `json:"fence_proof_sha256"`
-	FenceEpoch          uint64          `json:"fence_epoch"`
-	Steps               []DRRestoreStep `json:"steps"`
-	RequestedAt         time.Time       `json:"requested_at"`
-	UpdatedAt           time.Time       `json:"updated_at"`
-	EvidenceLabel       string          `json:"evidence_label"`
-	Message             string          `json:"message"`
-	RecoveryProofSHA256 string          `json:"recovery_proof_sha256,omitempty"`
-	MeasuredRPOSeconds  int64           `json:"measured_rpo_seconds,omitempty"`
-	MeasuredRTOSeconds  int64           `json:"measured_rto_seconds,omitempty"`
+	RestoreIdentityVersion int             `json:"restore_identity_version,omitempty"`
+	ID                     string          `json:"id"`
+	ClusterID              string          `json:"cluster_id"`
+	TargetClusterID        string          `json:"target_cluster_id"`
+	Direction              string          `json:"direction"`
+	Status                 string          `json:"status"`
+	FenceProofSHA256       string          `json:"fence_proof_sha256"`
+	FenceEpoch             uint64          `json:"fence_epoch"`
+	Steps                  []DRRestoreStep `json:"steps"`
+	RequestedAt            time.Time       `json:"requested_at"`
+	UpdatedAt              time.Time       `json:"updated_at"`
+	EvidenceLabel          string          `json:"evidence_label"`
+	Message                string          `json:"message"`
+	RecoveryProofSHA256    string          `json:"recovery_proof_sha256,omitempty"`
+	MeasuredRPOSeconds     int64           `json:"measured_rpo_seconds,omitempty"`
+	MeasuredRTOSeconds     int64           `json:"measured_rto_seconds,omitempty"`
+}
+
+// Only a journal that retained the created native object identities may be
+// completed or used as the lineage of a new reverse operation. Legacy records
+// remain readable for reconciliation; observing a current name cannot upgrade
+// their missing historical identity.
+func drRestoreIdentitiesBound(job DRTransitionJob) bool {
+	if job.RestoreIdentityVersion != drRestoreIdentityVersion || len(job.Steps) != 2 {
+		return false
+	}
+	for _, step := range job.Steps {
+		if step.State != "RESTORE_COMPLETED" || !validDRRestoreUID(step.RestoreUID) {
+			return false
+		}
+	}
+	return true
 }
 
 func drTransitionPath(ws Workspace) string {
@@ -167,11 +189,12 @@ func drTransitionPath(ws Workspace) string {
 }
 func readDRTransition(ws Workspace) (DRTransitionJob, error) {
 	var j DRTransitionJob
-	err := readRecoveryRecord(drTransitionPath(ws), &j, "id cluster_id target_cluster_id direction status fence_proof_sha256 fence_epoch steps requested_at updated_at evidence_label message recovery_proof_sha256 measured_rpo_seconds measured_rto_seconds")
+	err := readRecoveryRecord(drTransitionPath(ws), &j, "restore_identity_version id cluster_id target_cluster_id direction status fence_proof_sha256 fence_epoch steps requested_at updated_at evidence_label message recovery_proof_sha256 measured_rpo_seconds measured_rto_seconds")
 	if err != nil {
 		return j, err
 	}
-	if !backupIdempotencyPattern.MatchString(j.ID) || j.ClusterID != ws.ClusterID ||
+	if (j.RestoreIdentityVersion != 0 && j.RestoreIdentityVersion != drRestoreIdentityVersion) ||
+		!backupIdempotencyPattern.MatchString(j.ID) || j.ClusterID != ws.ClusterID ||
 		!recoveryIDPattern.MatchString(j.TargetClusterID) ||
 		(j.Direction != "FAILOVER" && j.Direction != "FAILBACK") ||
 		!isSHA256Hex(j.FenceProofSHA256) || j.FenceEpoch == 0 ||
@@ -192,6 +215,23 @@ func readDRTransition(ws Workspace) (DRTransitionJob, error) {
 		return DRTransitionJob{}, fmt.Errorf("%w: unsupported DR transition state", ErrValidation)
 	}
 	for _, step := range j.Steps {
+		if step.RestoreUID != "" && !validDRRestoreUID(step.RestoreUID) {
+			return DRTransitionJob{}, ErrValidation
+		}
+		if j.RestoreIdentityVersion == drRestoreIdentityVersion {
+			switch step.State {
+			case "PENDING":
+				if step.RestoreUID != "" {
+					return DRTransitionJob{}, ErrValidation
+				}
+			case "SUBMITTED", "RESTORE_COMPLETED":
+				if !validDRRestoreUID(step.RestoreUID) {
+					return DRTransitionJob{}, ErrValidation
+				}
+			default:
+				return DRTransitionJob{}, ErrValidation
+			}
+		}
 		if len(step.SourceBackupUID) < 16 || len(step.SourceBackupUID) > 64 ||
 			strings.ContainsAny(step.SourceBackupUID, " \r\n/\\") ||
 			!recoveryIDPattern.MatchString(step.BackupName) ||

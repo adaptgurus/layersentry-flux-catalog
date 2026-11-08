@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -94,6 +95,21 @@ func drRestoreName(nonce string, p DRWorkloadProfile) string {
 	return "lsdr-" + hex.EncodeToString(hash[:12])
 }
 
+func validDRRestoreUID(uid string) bool {
+	return len(uid) >= 16 && len(uid) <= 64 && !strings.ContainsAny(uid, " \t\r\n/\\")
+}
+
+// Native Velero v1.18.4 DataDownload records the target PVC by name and
+// namespace, not the immutable UID of the claim it actually wrote. Until that
+// historical binding is independently qualified, this LayerSentry DR path must
+// fail closed. This does not disable native CSI provisioning or Velero itself.
+func drVolumeRestoreQualification(p DRWorkloadProfile) error {
+	if p.VolumeRecoveryKind == "CSI_DATAMOVER" {
+		return fmt.Errorf("%w: CSI Data Mover DR restore is not qualified: native target PVC UID continuity is unavailable", ErrValidation)
+	}
+	return nil
+}
+
 func (m *RecoveryManager) observeVeleroRestore(ctx context.Context, ws Workspace, name string) (nativeVeleroRestore, error) {
 	var value nativeVeleroRestore
 	result, err := m.client.runner.Run(ctx, ws.Directory, m.client.cfg.KubectlBinary,
@@ -106,7 +122,7 @@ func (m *RecoveryManager) observeVeleroRestore(ctx context.Context, ws Workspace
 	}
 	if value.APIVersion != "velero.io/v1" || value.Kind != "Restore" ||
 		value.Metadata.Name != name || value.Metadata.Namespace != "velero" ||
-		len(value.Metadata.UID) < 16 || len(value.Metadata.UID) > 64 {
+		!validDRRestoreUID(value.Metadata.UID) {
 		return nativeVeleroRestore{}, ErrValidation
 	}
 	return value, nil
@@ -195,10 +211,24 @@ resourceModifierRules:
 // an old writer's retained volumes as newly recovered application bytes.
 func (m *RecoveryManager) targetNamespaceEmpty(ctx context.Context, ws Workspace, p DRWorkloadProfile) error {
 	for _, resource := range []string{"pods", "persistentvolumeclaims", "deployments.apps", "statefulsets.apps", "services", "configmaps", "secrets"} {
+		format := "json"
+		if resource == "secrets" {
+			// Native name output keeps Secret payloads out of the portal's
+			// stdout buffer; kubectl still reads the API objects internally.
+			format = "name"
+		}
 		result, err := m.client.runner.Run(ctx, ws.Directory, m.client.cfg.KubectlBinary,
-			[]string{"--kubeconfig", ws.Kubeconfig, "-n", p.Namespace, "get", resource, "-o", "json"}, m.client.cfg.Environment)
+			[]string{"--kubeconfig", ws.Kubeconfig, "-n", p.Namespace, "get", resource, "-o", format}, m.client.cfg.Environment)
 		if err != nil || result.StdoutTruncated || len(result.Stdout) > 1<<20 {
 			return ErrValidation
+		}
+		if resource == "secrets" {
+			// Only exact empty output proves absence. Names, whitespace, and
+			// unexpected diagnostics all leave the target unqualified.
+			if result.Stdout != "" {
+				return ErrValidation
+			}
+			continue
 		}
 		var value struct {
 			Items []json.RawMessage `json:"items"`
@@ -231,6 +261,9 @@ func (m *RecoveryManager) targetNamespaceEmpty(ctx context.Context, ws Workspace
 }
 
 func (m *RecoveryManager) createVeleroRestore(ctx context.Context, ws Workspace, p DRWorkloadProfile, name string) (string, error) {
+	if err := drVolumeRestoreQualification(p); err != nil {
+		return "", err
+	}
 	if !m.client.KubeconfigExists(ws) || !recoveryIDPattern.MatchString(name) {
 		return "", ErrValidation
 	}
@@ -281,20 +314,28 @@ func (m *RecoveryManager) createVeleroRestore(ctx context.Context, ws Workspace,
 		return "", err
 	}
 	result, err := m.client.runner.Run(ctx, ws.Directory, m.client.cfg.KubectlBinary,
-		[]string{"--kubeconfig", ws.Kubeconfig, "create", "-f", file}, m.client.cfg.Environment)
-	if err != nil || result.StdoutTruncated {
+		[]string{"--kubeconfig", ws.Kubeconfig, "create", "-f", file, "-o", "json"}, m.client.cfg.Environment)
+	if err != nil || result.StdoutTruncated || len(result.Stdout) == 0 || len(result.Stdout) > 1<<20 {
 		return "", errors.New("Velero restore create outcome UNKNOWN; do not retry automatically")
 	}
-	observed, err := m.observeVeleroRestore(ctx, ws, name)
-	if err != nil {
-		return "", errors.New("Velero restore accepted but resource identity is unreadable; do not retry")
+	// Bind the response from the create request itself. A subsequent GET by
+	// reusable name could otherwise adopt a replacement object. The caller
+	// durably records this UID BEFORE performing any verification GET.
+	var created nativeVeleroRestore
+	if json.Unmarshal([]byte(result.Stdout), &created) != nil ||
+		created.APIVersion != "velero.io/v1" || created.Kind != "Restore" ||
+		created.Metadata.Name != name || created.Metadata.Namespace != "velero" ||
+		!validDRRestoreUID(created.Metadata.UID) {
+		return "", errors.New("Velero restore create response identity UNKNOWN; do not retry automatically")
 	}
-	if observed.Spec.BackupName != p.BackupName ||
-		len(observed.Spec.IncludedNamespaces) != 1 || observed.Spec.IncludedNamespaces[0] != p.Namespace ||
-		!drKopiaRestoreSpecValid(p, name, observed) {
-		return "", ErrValidation
+	if created.Spec.BackupName != p.BackupName ||
+		len(created.Spec.IncludedNamespaces) != 1 || created.Spec.IncludedNamespaces[0] != p.Namespace ||
+		!drKopiaRestoreSpecValid(p, name, created) {
+		// Retain the known created object identity even when its spec is not
+		// the admitted restore. It requires reconciliation, never replay.
+		return created.Metadata.UID, ErrValidation
 	}
-	return observed.Metadata.UID, nil
+	return created.Metadata.UID, nil
 }
 
 func (m *RecoveryManager) verifyVeleroRestore(ctx context.Context, ws Workspace, p DRWorkloadProfile, name, uid string) error {
@@ -336,22 +377,20 @@ func (m *RecoveryManager) verifyVeleroRestore(ctx context.Context, ws Workspace,
 	}
 }
 
-// Verify a native Velero PodVolumeRestore (Kopia FSB) or CSI DataDownload
-// actually reached Completed. A Velero Restore CR alone proves no PVC bytes.
+// Verify a native Velero PodVolumeRestore (Kopia FSB) actually reached
+// Completed. A Velero Restore CR alone proves no PVC bytes.
 // Every volume operation must belong to THIS Restore object (restore UID, not
 // only its reusable deterministic name), and one of them must have written
 // into the configured application PVC that is live now.
 func (m *RecoveryManager) verifyVolumeRestoreEvidence(ctx context.Context, ws Workspace, p DRWorkloadProfile, name, restoreUID string) error {
-	kind := ""
-	switch p.VolumeRecoveryKind {
-	case "FSB_KOPIA":
-		kind = "podvolumerestores.velero.io"
-	case "CSI_DATAMOVER":
-		kind = "datadownloads.velero.io"
-	default:
+	if err := drVolumeRestoreQualification(p); err != nil {
+		return err
+	}
+	if p.VolumeRecoveryKind != "FSB_KOPIA" {
 		return ErrValidation
 	}
-	if len(restoreUID) < 16 {
+	kind := "podvolumerestores.velero.io"
+	if !validDRRestoreUID(restoreUID) {
 		return ErrValidation
 	}
 	pvcUID, err := m.recoveredPVCUID(ctx, ws, p)
@@ -366,13 +405,7 @@ func (m *RecoveryManager) verifyVolumeRestoreEvidence(ctx context.Context, ws Wo
 	var value struct {
 		Items []struct {
 			Metadata struct{ Labels map[string]string }
-			Spec     struct {
-				TargetVolume struct {
-					PVC       string `json:"pvc"`
-					Namespace string `json:"namespace"`
-				} `json:"targetVolume"`
-			}
-			Status struct{ Phase string }
+			Status   struct{ Phase string }
 		}
 	}
 	if err := json.Unmarshal([]byte(result.Stdout), &value); err != nil || len(value.Items) == 0 || len(value.Items) > 100 {
@@ -384,16 +417,8 @@ func (m *RecoveryManager) verifyVolumeRestoreEvidence(ctx context.Context, ws Wo
 			item.Metadata.Labels["velero.io/restore-uid"] != restoreUID || item.Status.Phase != "Completed" {
 			return ErrValidation
 		}
-		switch p.VolumeRecoveryKind {
-		case "FSB_KOPIA":
-			// Velero labels each PodVolumeRestore with the restored PVC's UID.
-			wroteApplicationPVC = wroteApplicationPVC || item.Metadata.Labels["velero.io/pvc-uid"] == pvcUID
-		case "CSI_DATAMOVER":
-			// A DataDownload names its target PVC; the restored claim UID is
-			// then re-read live above and at promotion.
-			wroteApplicationPVC = wroteApplicationPVC ||
-				(item.Spec.TargetVolume.PVC == p.PVCName && item.Spec.TargetVolume.Namespace == p.Namespace)
-		}
+		// Velero labels each PodVolumeRestore with the restored PVC's UID.
+		wroteApplicationPVC = wroteApplicationPVC || item.Metadata.Labels["velero.io/pvc-uid"] == pvcUID
 	}
 	if !wroteApplicationPVC {
 		return fmt.Errorf("%w: no completed volume restore wrote the configured application PVC", ErrValidation)

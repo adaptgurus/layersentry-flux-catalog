@@ -99,6 +99,11 @@ func (p *Portal) automaticDRTick(ctx context.Context, a DRAutomationPolicy,
 		return fmt.Errorf("%w: previous DR transition requires manual reconciliation", ErrValidation)
 	}
 	hasPrevious := err == nil
+	if hasPrevious && previous.RestoreIdentityVersion != drRestoreIdentityVersion {
+		state.State = "RESTORE_IDENTITY_RECONCILIATION_REQUIRED"
+		state.Reason = "Legacy recovery has no durable original Restore UID binding; no promotion, active-writer claim or automatic replay is allowed."
+		return persistAutoDRStatus(source, *state)
+	}
 
 	if hasPrevious && previous.Status == "RESTORE_OBSERVED_PENDING_APP_AND_TRAFFIC" {
 		state.State = "AWAITING_APP_AND_TRAFFIC_PROOF"

@@ -17,6 +17,18 @@ func (p *Portal) automaticDRStart(ctx context.Context, a DRAutomationPolicy,
 	if !ok {
 		return fmt.Errorf("%w: signed DR execution profile absent", ErrValidation)
 	}
+	if previous.ID != "" && !drRestoreIdentitiesBound(previous) {
+		state.State = "RESTORE_IDENTITY_RECONCILIATION_REQUIRED"
+		state.Reason = "The prior native restore identities are unavailable; no new fencing request or restore is allowed."
+		return persistAutoDRStatus(source, *state)
+	}
+	for _, workload := range execution.Workloads {
+		if err := drVolumeRestoreQualification(workload); err != nil {
+			state.State = "VOLUME_RESTORE_NOT_QUALIFIED"
+			state.Reason = "CSI Data Mover target PVC identity is not qualified for this DR workflow; no fencing request or restore is allowed."
+			return persistAutoDRStatus(source, *state)
+		}
+	}
 	now := time.Now().UTC()
 	intent, err := ensureDRAutomationFenceIntent(source, a, previous, direction, *state, now)
 	if err != nil {
@@ -51,15 +63,27 @@ func (p *Portal) automaticDRStart(ctx context.Context, a DRAutomationPolicy,
 	// reports Completed; bind each object UID to the external signed witness.
 	backupCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
+	backupCompletions := make([]time.Time, 0, len(execution.Workloads))
 	for i, workload := range execution.Workloads {
 		config := workload
 		if direction == "FAILBACK" {
 			config.BackupName = config.FailbackBackupName
 		}
 		backup, err := p.recovery.readVeleroBackup(backupCtx, restoreSite, config, proof.Workloads[i].BackupUID)
-		if err != nil || backup.Status.CompletionTimestamp.After(now.Add(15*time.Second)) ||
-			now.Sub(backup.Status.CompletionTimestamp) > time.Duration(a.MaxBackupAgeSeconds)*time.Second ||
-			(previous.Status == "VERIFIED" && !drBackupGenerationAfter(backup, previous.UpdatedAt)) {
+		if err != nil || (previous.Status == "VERIFIED" && !drBackupGenerationAfter(backup, previous.UpdatedAt)) {
+			state.State = "AWAITING_FRESH_OFFSITE_BACKUPS"
+			state.Reason = "Exact independent application/PVC backup UID or freshness is unavailable."
+			return persistAutoDRStatus(source, *state)
+		}
+		backupCompletions = append(backupCompletions, backup.Status.CompletionTimestamp)
+	}
+	// Native reads can consume the remaining age budget. Recheck every
+	// observed backup against one current time before admission, including
+	// an earlier workload that aged while a later workload was being read.
+	admissionNow := time.Now().UTC()
+	for _, completedAt := range backupCompletions {
+		if completedAt.After(admissionNow.Add(15*time.Second)) ||
+			admissionNow.Sub(completedAt) > time.Duration(a.MaxBackupAgeSeconds)*time.Second {
 			state.State = "AWAITING_FRESH_OFFSITE_BACKUPS"
 			state.Reason = "Exact independent application/PVC backup UID or freshness is unavailable."
 			return persistAutoDRStatus(source, *state)

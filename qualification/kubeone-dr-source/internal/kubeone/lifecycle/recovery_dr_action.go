@@ -91,6 +91,13 @@ func (p *Portal) dispatchDRTransitionOwned(ctx, ownerCtx context.Context, ws Wor
 	if !ok || !registered || err != nil || targetCfg.APIEndpoint != policy.TargetEndpoint || target.ClusterID == ws.ClusterID {
 		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("qualified independent DR target missing"))
 	}
+	// Reject an unqualified volume path before requesting/using a physical
+	// fence or dispatching any native restore mutation.
+	for _, workload := range execution.Workloads {
+		if err := drVolumeRestoreQualification(workload); err != nil {
+			return DRTransitionJob{}, drActionFault(http.StatusConflict, err)
+		}
+	}
 	// A site without an externally registered fencing/restore owner returns
 	// BLOCKED before validating per-request idempotency details.
 	if !backupIdempotencyPattern.MatchString(nonce) {
@@ -141,6 +148,9 @@ func (p *Portal) dispatchDRTransitionOwned(ctx, ownerCtx context.Context, ws Wor
 		if old.ID == nonce && old.Direction == direction {
 			return old, nil
 		}
+		if !drRestoreIdentitiesBound(old) {
+			return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("prior DR restore identities require reconciliation before a new transition"))
+		}
 		if old.Status != "VERIFIED" || old.Direction == direction ||
 			proof.FenceEpoch <= old.FenceEpoch ||
 			(direction == "FAILBACK" && old.Direction != "FAILOVER") {
@@ -168,9 +178,9 @@ func (p *Portal) dispatchDRTransitionOwned(ctx, ownerCtx context.Context, ws Wor
 	}
 	// Only the newly active site must be healthy. A failed/offline DC is not
 	// assumed fenced; a separate fresh signed native fence proof is mandatory.
-	ctx, cancel := context.WithTimeout(ctx, 35*time.Second)
-	status, err := p.Client.Status(ctx, targetWS)
-	cancel()
+	statusCtx, statusCancel := context.WithTimeout(ctx, 35*time.Second)
+	status, err := p.Client.Status(statusCtx, targetWS)
+	statusCancel()
 	if err != nil || !status.APIReady || targetWS.ExpectedCPNodes < 3 ||
 		status.ReadyControlPlanes != targetWS.ExpectedCPNodes || status.KubeSystemNonReady != 0 {
 		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("target independent KubeOne quorum unavailable"))
@@ -209,7 +219,8 @@ func (p *Portal) dispatchDRTransitionOwned(ctx, ownerCtx context.Context, ws Wor
 	}
 	now := time.Now().UTC()
 	job := DRTransitionJob{
-		ID: nonce, ClusterID: ws.ClusterID, TargetClusterID: target.ClusterID,
+		RestoreIdentityVersion: drRestoreIdentityVersion,
+		ID:                     nonce, ClusterID: ws.ClusterID, TargetClusterID: target.ClusterID,
 		Direction: direction, Status: "RUNNING", FenceProofSHA256: digest,
 		FenceEpoch: proof.FenceEpoch, Steps: steps, RequestedAt: now, UpdatedAt: now,
 		EvidenceLabel: "UNKNOWN",
@@ -282,11 +293,22 @@ func (p *Portal) runDRTransition(ownerCtx context.Context, source Workspace, tar
 			break
 		}
 		id, e := p.recovery.createVeleroRestore(ctx, target, wcfg, job.Steps[i].RestoreName)
+		if id != "" {
+			job.Steps[i].RestoreUID = id
+			job.Steps[i].State = "SUBMITTED"
+			job.UpdatedAt = time.Now().UTC()
+			// A controller interruption must not lose the identity that the
+			// native create returned. No GET, next restore or promotion may
+			// proceed if that custody cannot be durably recorded.
+			if err := writeBoundedJob(source, drTransitionPath(source), ".layersentry-kubeone-dr-transition-*.tmp", job); err != nil {
+				outcomeErr = fmt.Errorf("created Velero restore identity could not be durably recorded: %w", err)
+				break
+			}
+		}
 		if e != nil {
 			outcomeErr = fmt.Errorf("Velero restore outcome unknown: %w", e)
 			break
 		}
-		job.Steps[i].State = "SUBMITTED"
 		if e = p.recovery.verifyVeleroRestore(ctx, target, wcfg, job.Steps[i].RestoreName, id); e != nil {
 			outcomeErr = fmt.Errorf("Velero restore could not be independently verified: %w", e)
 			break
