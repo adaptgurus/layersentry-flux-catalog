@@ -1,5 +1,5 @@
 {
-  "source_commit": "4586bf8230f9ce3e5c36dd6a60c6b26aae73e8bf",
+  "source_commit": "be38e9850a35ea378f09004026528821db45d08b",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -271,8 +271,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_async_owner_cancellation_test.go",
-      "sha256": "cfca289af87140eb787e3b06c1e0a4eb6841259344c898c97683aae104cd1a81",
-      "source_blob": "b70fdd2d471215136c3f23ad501c27bdf96f5019"
+      "sha256": "b6c42cc552ae0b75e82daf6171d88dbd6b6a3886e5a8d4d29ad02a9039404368",
+      "source_blob": "75ffa42c459b4578971288c4c5852c3fa8eb6987"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_auto_action.go",
