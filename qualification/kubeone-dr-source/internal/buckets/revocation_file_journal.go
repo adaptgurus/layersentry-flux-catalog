@@ -133,6 +133,39 @@ func readRevocationRecord(dir *os.File, filename string) (fileRevocationRecord, 
 	return record, nil
 }
 
+// CheckNotAdmitted proves the absence of any prior single-use journal entry
+// for this exact custody identity before rotation may issue a replacement.
+// A malformed/permission-denied/symlinked entry is ambiguous and fails closed.
+// It never clears or rewrites a previously recorded intent.
+func (j FileCredentialRevocationJournal) CheckNotAdmitted(ctx context.Context, ref CredentialReference) error {
+	if ctx == nil || ctx.Err() != nil {
+		return ErrCredentialReconciliationRequired
+	}
+	key, err := revokeIdentity(ref)
+	if err != nil {
+		return ErrCredentialReconciliationRequired
+	}
+	dir, err := j.openPrivateDir()
+	if err != nil {
+		return ErrCredentialReconciliationRequired
+	}
+	defer dir.Close()
+	for _, extension := range []string{".intent", ".complete"} {
+		fd, openErr := unix.Openat(int(dir.Fd()), key+extension, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if openErr == nil {
+			unix.Close(fd)
+			return ErrCredentialReconciliationRequired
+		}
+		if !errors.Is(openErr, unix.ENOENT) {
+			return ErrCredentialReconciliationRequired
+		}
+	}
+	if ctx.Err() != nil {
+		return ErrCredentialReconciliationRequired
+	}
+	return nil
+}
+
 // BeginRevocation writes and fsyncs a unique PENDING record before any
 // provider effect. A second call for the same custody ID fails closed even
 // after completion; an operator must independently reconcile the ledger.

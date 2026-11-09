@@ -163,3 +163,103 @@ func TestManagedRevokeWithRealFileJournalAvoidsBlindRetry(t *testing.T) {
 		t.Fatal("second controller call replayed provider mutation", err)
 	}
 }
+
+func TestFileRevocationJournalPreflightBlocksPreviouslyAdmittedIdentity(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	journal := FileCredentialRevocationJournal{Directory: dir}
+	ref := revocationTestReference()
+	if err := journal.CheckNotAdmitted(context.Background(), ref); err != nil {
+		t.Fatal("fresh credential blocked", err)
+	}
+	intent, err := journal.BeginRevocation(context.Background(), ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newProcess := FileCredentialRevocationJournal{Directory: dir}
+	if err := newProcess.CheckNotAdmitted(context.Background(), ref); !errors.Is(err, ErrCredentialReconciliationRequired) {
+		t.Fatal("existing intent allowed another rotation", err)
+	}
+	changed := ref
+	changed.ProviderCredentialID = "provider-replaced"
+	if err := newProcess.CheckNotAdmitted(context.Background(), changed); !errors.Is(err, ErrCredentialReconciliationRequired) {
+		t.Fatal("changed provider ID evaded custody admission", err)
+	}
+	if err := journal.CompleteRevocation(context.Background(), intent); err != nil {
+		t.Fatal(err)
+	}
+	if err := newProcess.CheckNotAdmitted(context.Background(), ref); !errors.Is(err, ErrCredentialReconciliationRequired) {
+		t.Fatal("completed revocation permitted replay", err)
+	}
+	fresh := ref
+	fresh.ID = "distinct-custody-key"
+	if err := newProcess.CheckNotAdmitted(context.Background(), fresh); err != nil {
+		t.Fatal("unrelated custody identity blocked", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := newProcess.CheckNotAdmitted(ctx, fresh); !errors.Is(err, ErrCredentialReconciliationRequired) {
+		t.Fatal("canceled preflight succeeded", err)
+	}
+}
+
+func TestManagedRotationRetirementJournalBlocksReplayAfterUncertainEffect(t *testing.T) {
+	cases := []string{"provider_revoked_then_error", "custody_deleted_then_error", "canceled_after_provider", "completed_then_repeated"}
+	for _, stage := range cases {
+		t.Run(stage, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.Chmod(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			p, custody, c := credentialControllerFixture()
+			c.Revocations = FileCredentialRevocationJournal{Directory: dir}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			switch stage {
+			case "provider_revoked_then_error":
+				p.revokeErr = errors.New("provider state changed but result unknown " + credentialCanary)
+			case "custody_deleted_then_error":
+				custody.deleteErr = errors.New("custody effect may have committed " + credentialCanary)
+			case "canceled_after_provider":
+				p.onRevoke = func(id string) {
+					if id == "provider-old" {
+						cancel()
+					}
+				}
+			}
+			previous := CredentialReference{ID: "custody-old", ProviderCredentialID: "provider-old", ExpiresAt: time.Now().Add(time.Hour)}
+			next, err := c.Rotate(ctx, "dr-backups", previous)
+			if stage == "completed_then_repeated" {
+				if err != nil {
+					t.Fatal("clean rotation did not complete", err)
+				}
+			} else if !errors.Is(err, ErrCredentialReconciliationRequired) || strings.Contains(err.Error(), credentialCanary) || next.ID == "" {
+				t.Fatal("ambiguous retirement was not retained and redacted", err, next)
+			}
+			if len(p.issued) != 1 || len(p.revoked) != 1 || p.revoked[0] != "provider-old" {
+				t.Fatal("unexpected provider mutation before replay", p.issued, p.revoked)
+			}
+			// A new journal instance emulates a restart: it must block BEFORE
+			// issuing another candidate or reaching the provider for old key.
+			c.Revocations = FileCredentialRevocationJournal{Directory: dir}
+			beforeActivation := c.Activator.(*credentialActivatorFixture).calls
+			_, err = c.Rotate(context.Background(), "dr-backups", previous)
+			if !errors.Is(err, ErrCredentialReconciliationRequired) || len(p.issued) != 1 || len(p.revoked) != 1 || c.Activator.(*credentialActivatorFixture).calls != beforeActivation {
+				t.Fatal("repeated rotation changed provider or active reference", err, p.issued, p.revoked)
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := 1
+			if stage == "completed_then_repeated" {
+				want = 2
+			}
+			if len(entries) != want {
+				t.Fatal("durable retirement evidence missing", len(entries), want)
+			}
+		})
+	}
+}

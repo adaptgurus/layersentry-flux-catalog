@@ -69,6 +69,11 @@ type CredentialRevocationIntent struct {
 // record MUST fail closed, never replay. Complete records the confirmed final
 // state after provider and custody operations have both succeeded.
 type CredentialRevocationJournal interface {
+	// CheckNotAdmitted is a read-only, fail-closed preflight: if this custody
+	// identity has ever entered revocation, rotation must not issue a new key.
+	// Concurrent racing writers are still excluded by BeginRevocation and
+	// require a separately qualified HA owner/lease.
+	CheckNotAdmitted(context.Context, CredentialReference) error
 	BeginRevocation(context.Context, CredentialReference) (CredentialRevocationIntent, error)
 	CompleteRevocation(context.Context, CredentialRevocationIntent) error
 }
@@ -228,6 +233,12 @@ func (c ManagedCredentialController) Rotate(ctx context.Context, bucket string, 
 	if previous.ID == "" || previous.ProviderCredentialID == "" {
 		return CredentialReference{}, ErrCredentialVerificationFailed
 	}
+	// The old identity may already have been partially revoked by a previous
+	// rotation. Reject a replay before issuing another candidate or switching
+	// the active reference. Only the durable journal can make this decision.
+	if c.Revocations == nil || c.Revocations.CheckNotAdmitted(ctx, previous) != nil || ctx.Err() != nil {
+		return CredentialReference{}, ErrCredentialReconciliationRequired
+	}
 	next, err := c.issueExcluding(ctx, bucket, previous.ProviderCredentialID)
 	if err != nil {
 		return CredentialReference{}, err
@@ -264,14 +275,11 @@ func (c ManagedCredentialController) Rotate(ctx context.Context, bucket string, 
 	if ctx.Err() != nil {
 		return next, ErrCredentialReconciliationRequired
 	}
-	if err := c.Provider.RevokeCredential(ctx, previous.ProviderCredentialID); err != nil {
+	// Rotation retirement is the same journaled, exact single-use operation
+	// as standalone revocation. An external provider can mutate and then
+	// return an error; such outcomes must not be silently replayed.
+	if err := c.Revoke(ctx, previous); err != nil {
 		return next, ErrCredentialReconciliationRequired
-	}
-	if ctx.Err() != nil {
-		return next, ErrCredentialReconciliationRequired
-	}
-	if err := c.Custody.DeleteCredential(ctx, previous); err != nil {
-		return next, ErrCredentialCustodyUnavailable
 	}
 	if ctx.Err() != nil {
 		return next, ErrCredentialReconciliationRequired

@@ -121,6 +121,17 @@ type credentialRevocationFixture struct {
 	onComplete  func()
 }
 
+func (j *credentialRevocationFixture) CheckNotAdmitted(ctx context.Context, ref CredentialReference) error {
+	if ctx == nil || ctx.Err() != nil {
+		return ErrCredentialReconciliationRequired
+	}
+	if j.entries != nil {
+		if _, exists := j.entries[ref.ID]; exists {
+			return ErrCredentialReconciliationRequired
+		}
+	}
+	return nil
+}
 func (j *credentialRevocationFixture) BeginRevocation(_ context.Context, ref CredentialReference) (CredentialRevocationIntent, error) {
 	j.begins++
 	if j.onBegin != nil {
