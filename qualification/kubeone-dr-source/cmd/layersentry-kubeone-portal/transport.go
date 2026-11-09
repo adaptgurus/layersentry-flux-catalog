@@ -17,7 +17,7 @@ import (
 // explicitly configured TLS deployment must bind all transport and gateway
 // identities together; partial/empty settings never fall back to plaintext.
 func portalTransport(address, token string) (*tls.Config, *platformapi.GatewayAuth, error) {
-	names := []string{"LAYERSENTRY_KUBEONE_PORTAL_TLS_CERT_FILE", "LAYERSENTRY_KUBEONE_PORTAL_TLS_KEY_FILE", "LAYERSENTRY_KUBEONE_PORTAL_CLIENT_CA_FILE", "LAYERSENTRY_GATEWAY_CERTIFICATE_SHA256"}
+	names := portalTLSSettings
 	configured := false
 	values := make([]string, len(names))
 	for i, name := range names {

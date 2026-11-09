@@ -26,7 +26,7 @@ func required(name string) (string, error) {
 }
 
 func main() {
-	if err := run(); err != nil {
+	if err := runPortalCommand(os.Args[1:]); err != nil {
 		log.Fatal(err)
 	}
 }

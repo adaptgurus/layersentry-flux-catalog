@@ -1,5 +1,5 @@
 {
-  "source_commit": "b1a06a39c8411f462b885a9d2f0986f28b602bd1",
+  "source_commit": "7622b30ef07ed16fe890a759c8308985ff4d2216",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -10,9 +10,14 @@
       "source_blob": "81d3499af19015028c46a855ef4e609f53996d7b"
     },
     {
+      "path": "cmd/layersentry-kubeone-portal/installer_test.go",
+      "sha256": "9b757bad882e1dc5d893943a21783466550b85a1f60238a628e1ad84d5ce07e9",
+      "source_blob": "a409bb49f4febde1bc84bfb07dbc2c1d9de6eae1"
+    },
+    {
       "path": "cmd/layersentry-kubeone-portal/main.go",
-      "sha256": "b56a0586cc050c8fdf187f20aa717847ed3b7043099b5a88fe5428ba85ecf2e8",
-      "source_blob": "4288172b4cb8539ab86dd206fa19ce485c7ce14a"
+      "sha256": "b7e907404c0b23d126c92779e9115f5461682c0e81aa13d2c4666f63946d28f4",
+      "source_blob": "7588d9684c1351d41f2ea0748dacbd035ad1d3e0"
     },
     {
       "path": "cmd/layersentry-kubeone-portal/main_test.go",
@@ -25,9 +30,19 @@
       "source_blob": "9f074500ffd9903d41fd038f9f0aafe5984a06aa"
     },
     {
+      "path": "cmd/layersentry-kubeone-portal/readiness.go",
+      "sha256": "54eab0ebbcc439fb98bdcb350bb505b67794c8f70634e4e32af6f52f970fb150",
+      "source_blob": "e3e8e7202eb36cb9ab54177c7d36c8d70ad910cb"
+    },
+    {
+      "path": "cmd/layersentry-kubeone-portal/readiness_test.go",
+      "sha256": "150687d7b5c140eba0f50333db66d42e7579ed7e8e3d56cc60fbb80deba68f0c",
+      "source_blob": "2961a6ec35867818f9f12a4b330477c0a5d140e5"
+    },
+    {
       "path": "cmd/layersentry-kubeone-portal/transport.go",
-      "sha256": "cb2251516cd58a31e15421f0157f0d970a973ad98cb8c6294bd08726302375f1",
-      "source_blob": "959c2f0b58093ec420ba7efffe779020cabd37c5"
+      "sha256": "4a31846dcd51898974916a1559e88674e87a6eca4b08b15e40219d69a17862be",
+      "source_blob": "a687337d5ecfc7dd0c7f15cbfd383cc0d40e5eff"
     },
     {
       "path": "cmd/layersentry-kubeone-portal/transport_test.go",
@@ -38,6 +53,21 @@
       "path": "cmd/layersentry-kubeone-portal/workspace_boundary_process_test.go",
       "sha256": "ef755e7071ab13856aaf298984b4f3eb3231b3032027dcf1f645bb9c090b4ffe",
       "source_blob": "35fca1f8eef5b26cfc90aa46f3f0ee325369fb59"
+    },
+    {
+      "path": "deploy/kubeone/PORTAL_READINESS.md",
+      "sha256": "8e249913aee4b4bd9cb1fbac9d4500f1b8cfcbde482ccbf29dfc82879c9c7566",
+      "source_blob": "33e02a9e8d3310260d90471ec688e906ae030fbd"
+    },
+    {
+      "path": "deploy/kubeone/install-portal.sh",
+      "sha256": "54dfcbb998aeee596789acdc226e28b12f05b61dbdc14f950a469ca4fea7cd5d",
+      "source_blob": "22d21008d3a4b7096813baa09f4dfdec80e62d72"
+    },
+    {
+      "path": "deploy/kubeone/kubeone-portal.env.example",
+      "sha256": "68853991ebd3eff1b248e87578a736cd6890d16df91cfe99ecafe3097fbab934",
+      "source_blob": "f5d3734c270c551a3ee2b442d84f9a7d4def621a"
     },
     {
       "path": "go.mod",
