@@ -34,9 +34,10 @@ type ClusterBackupJob struct {
 }
 
 type RecoveryManager struct {
-	client     *Client
-	config     RecoveryConfig
-	mountCheck func(NFSBackupTarget) error // fixed production function; test injection only
+	client                 *Client
+	config                 RecoveryConfig
+	mountCheck             func(NFSBackupTarget) error // fixed production function; test injection only
+	storageBindingVerifier DRStorageCredentialVerifier // explicitly wired provider/custody adapter; nil blocks DR
 }
 
 func NewRecoveryManager(c *Client, config RecoveryConfig) (*RecoveryManager, error) {

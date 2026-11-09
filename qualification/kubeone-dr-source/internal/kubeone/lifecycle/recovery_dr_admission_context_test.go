@@ -106,12 +106,14 @@ func TestDRAdmissionContextCancellationStopsBeforeIntent(t *testing.T) {
 				t.Fatalf("canceled admission reached a native operation: restores=%d modifiers=%d backups=%d",
 					restores, modifiers, backups)
 			}
-			wantCanceledBackups := int64(0)
-			if stage == "before_backup" {
-				wantCanceledBackups = 1
-			}
-			if runner.canceledCalls.Load() != 1 || runner.canceledBackupCalls.Load() != wantCanceledBackups {
-				t.Fatal("caller cancellation was not preserved at the expected admission boundary")
+			if stage == "before_health" {
+				// Canceled requests now fail at the explicit admission
+				// boundary, before any native command is attempted.
+				if runner.canceledCalls.Load() != 0 || runner.canceledBackupCalls.Load() != 0 {
+					t.Fatal("pre-canceled admission reached a native command")
+				}
+			} else if runner.canceledCalls.Load() != 1 || runner.canceledBackupCalls.Load() != 1 {
+				t.Fatal("cancellation during native backup admission was not preserved")
 			}
 		})
 	}

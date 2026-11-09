@@ -284,6 +284,20 @@ func (r *drNativeRunner) Run(ctx context.Context, dir, binary string, args, env 
 	return r.recoveryFakeRunner.Run(ctx, dir, binary, args, env)
 }
 
+// Synthetic verifier: no provider, secret or Kubernetes BSL is contacted.
+// Only the exact expected tenant, site, reference and storage location qualify.
+type drFixtureStorageBindingVerifier struct{}
+
+func (*drFixtureStorageBindingVerifier) VerifyBoundStorageCredential(ctx context.Context, b DRStorageCredentialBinding) error {
+	if ctx.Err() != nil || b.Tenant != "tenant-a" || b.ProtectedSourceClusterID != "cluster-a" ||
+		b.ProtectedTargetClusterID != "cluster-dr" ||
+		(b.RestoreSiteClusterID != "cluster-a" && b.RestoreSiteClusterID != "cluster-dr") ||
+		b.BackupStorageLocation != "dr-s3" || b.ManagedCredentialRef != "dr-s3-managed" {
+		return ErrValidation
+	}
+	return nil
+}
+
 type drTestSite struct {
 	t            *testing.T
 	portal       *Portal
@@ -329,6 +343,7 @@ func setupDRExecutionFixture(t *testing.T) *drTestSite {
 		},
 	}
 	p.recovery.config.DRExecutions = []DRExecutionProfile{profile}
+	p.recovery.storageBindingVerifier = &drFixtureStorageBindingVerifier{}
 	if e = p.recovery.config.Validate(); e != nil {
 		t.Fatal("qualification profile rejected", e)
 	}

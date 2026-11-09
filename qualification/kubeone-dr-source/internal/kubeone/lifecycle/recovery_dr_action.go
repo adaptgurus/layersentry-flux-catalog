@@ -81,6 +81,9 @@ func (p *Portal) dispatchDRTransitionOwned(ctx, ownerCtx context.Context, ws Wor
 	if p == nil || p.recovery == nil || (direction != "FAILOVER" && direction != "FAILBACK") {
 		return DRTransitionJob{}, drActionFault(http.StatusConflict, ErrValidation)
 	}
+	if ctx.Err() != nil {
+		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("DR admission canceled before dispatch"))
+	}
 	policy, err := readDRPolicy(ws)
 	if err != nil || !policy.Enabled || policy.State != "BLOCKED" {
 		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("registered independent DR plan unavailable"))
@@ -107,13 +110,16 @@ func (p *Portal) dispatchDRTransitionOwned(ctx, ownerCtx context.Context, ws Wor
 	if err != nil || currentIdentity != policy.TargetIdentity {
 		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("DR target identity mismatch"))
 	}
-	proof, digest, err := verifiedDRFence(execution, nonce, direction, time.Now().UTC())
-	if err != nil {
-		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("externally signed exact native source-writer fencing unavailable"))
-	}
 	targetWS := target
 	if direction == "FAILBACK" {
 		targetWS = ws
+	}
+	if err := p.recovery.verifyDRStorageCredentialBindings(ctx, execution, targetWS); err != nil {
+		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("managed DR storage credential or exact BackupStorageLocation not qualified"))
+	}
+	proof, digest, err := verifiedDRFence(execution, nonce, direction, time.Now().UTC())
+	if err != nil {
+		return DRTransitionJob{}, drActionFault(http.StatusConflict, errors.New("externally signed exact native source-writer fencing unavailable"))
 	}
 	key := registryKey(ws.Tenant, ws.ClusterID)
 	targetKey := registryKey(target.Tenant, target.ClusterID)

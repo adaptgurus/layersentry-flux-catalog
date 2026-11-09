@@ -29,6 +29,17 @@ func (p *Portal) automaticDRStart(ctx context.Context, a DRAutomationPolicy,
 			return persistAutoDRStatus(source, *state)
 		}
 	}
+	restoreSite := target
+	if direction == "FAILBACK" {
+		restoreSite = source
+	}
+	// Do not even issue a non-authoritative fencing request if the exact
+	// server-owned storage credential/BSL binding cannot be proven.
+	if err := p.recovery.verifyDRStorageCredentialBindings(ctx, execution, restoreSite); err != nil {
+		state.State = "STORAGE_CREDENTIAL_NOT_QUALIFIED"
+		state.Reason = "Managed storage credential, provider or exact BackupStorageLocation is not qualified."
+		return persistAutoDRStatus(source, *state)
+	}
 	now := time.Now().UTC()
 	intent, err := ensureDRAutomationFenceIntent(source, a, previous, direction, *state, now)
 	if err != nil {
@@ -54,10 +65,6 @@ func (p *Portal) automaticDRStart(ctx context.Context, a DRAutomationPolicy,
 			state.Reason = "Reverse transfer requires a verified prior failover and newer fencing generation."
 			return persistAutoDRStatus(source, *state)
 		}
-	}
-	restoreSite := target
-	if direction == "FAILBACK" {
-		restoreSite = source
 	}
 	// Do not restore stale backup data simply because an old Velero Backup CR
 	// reports Completed; bind each object UID to the external signed witness.

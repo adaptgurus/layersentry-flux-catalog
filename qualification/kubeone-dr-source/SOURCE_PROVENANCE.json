@@ -1,5 +1,5 @@
 {
-  "source_commit": "31d5a05418590b25ee3799cc2174b0f057e3e187",
+  "source_commit": "ff942e62d4e25d2d9808470618dd79416570ce35",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -256,8 +256,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_backup.go",
-      "sha256": "8deb99a15f1ea1f0366f17812642ae9b9d5e2e8dd46e886cf8886e99e04827a9",
-      "source_blob": "a3db359e4ae0b08df8a5603213ddfd0aa35b6e6e"
+      "sha256": "99f1491f3afda7500839a96f0ac6a6cf5a87eea2821f1b2973481b26deff092d",
+      "source_blob": "bc27a81f2d68988b1ce57deb09dec6db97fc27bb"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_config.go",
@@ -266,8 +266,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_action.go",
-      "sha256": "502352c6e6919b6234da88cf8162da320083d9d96247df53e620da84ee757745",
-      "source_blob": "16d2171c0471da2418ba180bb94e05134e81c487"
+      "sha256": "556cc82519a1f520fa40c8d61774c9ae71b7efecc8891f65e6aa711e485d20e3",
+      "source_blob": "714cd81d3d0df8bc137e3030a40b7c6ce6c084c7"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_active_fence_test.go",
@@ -276,8 +276,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_admission_context_test.go",
-      "sha256": "f01b921912f0bfb23930a19926bac6dec6fcfa10c960225554568bc5a001d1e4",
-      "source_blob": "12f7d59b039921c9e7e2ddd133c21e8a9cdd441c"
+      "sha256": "6d007f7dbae76c2578ba76064f3d483a3eaee5cc902d3ca74f4834f3603a8912",
+      "source_blob": "41a8e7f161472d2251d4a883ea3789bdf37d8672"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_async_owner_cancellation_test.go",
@@ -286,8 +286,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_auto_action.go",
-      "sha256": "60e3d0d3c2708cc65550b2627543afabfee02b7b586562a8cacc69b062ad8dc8",
-      "source_blob": "07f6ca91793beb7ea6b6b5a31fc73e0365a57db2"
+      "sha256": "c3db1a23d7c915cef2ba84b294c07a170604d222611b64cef04c61395e178930",
+      "source_blob": "ae2d5ae8fa6093eb91503d85290e76b332877e15"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_auto_config.go",
@@ -415,6 +415,16 @@
       "source_blob": "6a252d5a60b7935ac1f0a3da163b2e3ef5ce96b7"
     },
     {
+      "path": "internal/kubeone/lifecycle/recovery_dr_storage_binding.go",
+      "sha256": "9e993b5f296b736c53c97200c5164ddf6854c19e3d588f2525dff6a3d3774852",
+      "source_blob": "82e67917bd31cbaea9d487fa2c6bfeb042468713"
+    },
+    {
+      "path": "internal/kubeone/lifecycle/recovery_dr_storage_binding_test.go",
+      "sha256": "9acd0344b8243b6d2b41ad752eee594418932879797ac4d04ed287e2bb06247b",
+      "source_blob": "5d7c330498126ca7eccd8a0f5873c31b2ab5e388"
+    },
+    {
       "path": "internal/kubeone/lifecycle/recovery_dr_storage_probe.go",
       "sha256": "e53243a23d7902242ddeb65d7c3ab49b24da9bcbc32cbd19d463c1e2b91ce6bb",
       "source_blob": "fd3ee4153b126502cd45415a987309d3313bbf9e"
@@ -436,8 +446,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_workflow_test.go",
-      "sha256": "142767d4c9e2154b016936b6c8b6a7488c3eaa9c30bee166820758d56a2c88a0",
-      "source_blob": "424c940f64f0ef0a46b294207237318154d9dfa5"
+      "sha256": "fccc2f8ba39753b7900660221735eccae7a9073f8b0b63275bb5bd37c5e37ecb",
+      "source_blob": "f5474e62281ada990fcd4b7245133b014ca6a8d4"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_workload_rpo_test.go",
