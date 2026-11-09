@@ -8,16 +8,20 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -406,5 +410,121 @@ func TestReadinessRejectsClientCertificateSharingServerKey(t *testing.T) {
 	f.configure(t)
 	if _, err := newPortalReadinessProbe(); err == nil || !strings.Contains(err.Error(), "separate client identity") {
 		t.Fatalf("valid ClientAuth certificate sharing the server key was not refused by identity guard: %v", err)
+	}
+}
+
+// This transport returns synthetic failures without contacting their URLs.
+type readinessDiagnosticRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f readinessDiagnosticRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestReadinessTerminalFailureCategoriesAreRedacted(t *testing.T) {
+	const sensitive = "private-key-path-token-certificate-sentinel"
+	for _, tc := range []struct {
+		name   string
+		err    error
+		status int
+		want   string
+	}{
+		{name: "connection_refused", err: syscall.ECONNREFUSED, want: "connection_refused"},
+		{name: "permission_denied", err: syscall.EACCES, want: "permission_denied"},
+		{name: "operation_not_permitted", err: syscall.EPERM, want: "permission_denied"},
+		{name: "network_unreachable", err: syscall.ENETUNREACH, want: "network_unreachable"},
+		{name: "host_unreachable", err: syscall.EHOSTUNREACH, want: "network_unreachable"},
+		{name: "context_deadline", err: context.DeadlineExceeded, want: "deadline"},
+		{name: "socket_timeout", err: syscall.ETIMEDOUT, want: "deadline"},
+		{name: "network_timeout", err: &net.DNSError{Err: sensitive, Name: sensitive, IsTimeout: true}, want: "deadline"},
+		{name: "cancelled", err: context.Canceled, want: "cancelled"},
+		{name: "unknown_transport", err: errors.New(sensitive), want: "transport_error"},
+		{name: "http_client_error", status: http.StatusForbidden, want: "http_4xx"},
+		{name: "http_server_error", status: http.StatusServiceUnavailable, want: "http_5xx"},
+		{name: "http_other_status", status: http.StatusNoContent, want: "http_non_success"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			p := &portalReadinessProbe{
+				endpoint: "https://" + sensitive + ".test/" + sensitive + "?token=" + sensitive,
+				client: &http.Client{Transport: readinessDiagnosticRoundTripper(func(*http.Request) (*http.Response, error) {
+					cancel()
+					if tc.err != nil {
+						return nil, &url.Error{Op: sensitive, URL: sensitive, Err: &net.OpError{
+							Op: sensitive, Net: "tcp", Err: &os.SyscallError{
+								Syscall: sensitive, Err: fmt.Errorf("%s: %w", sensitive, tc.err),
+							},
+						}}
+					}
+					return &http.Response{StatusCode: tc.status, Body: io.NopCloser(strings.NewReader(sensitive))}, nil
+				})},
+			}
+			err := p.wait(ctx, time.Second)
+			want := "portal readiness was not established before cancellation or timeout; last_failure=" + tc.want
+			if err == nil || err.Error() != want || strings.Contains(err.Error(), sensitive) {
+				t.Fatalf("terminal diagnostic was missing, incorrect or exposed failure details: %v", err)
+			}
+		})
+	}
+}
+
+func TestReadinessCancellationPreservesLastFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	requests := 0
+	p := &portalReadinessProbe{
+		endpoint: "http://127.0.0.1:1/readyz",
+		client: &http.Client{Transport: readinessDiagnosticRoundTripper(func(*http.Request) (*http.Response, error) {
+			requests++
+			switch requests {
+			case 1:
+				return nil, syscall.ECONNREFUSED
+			case 2:
+				return nil, syscall.EACCES
+			default:
+				cancel()
+				return nil, fmt.Errorf("request cancelled: %w", context.Canceled)
+			}
+		})},
+	}
+	err := p.wait(ctx, time.Millisecond)
+	want := "portal readiness was not established before cancellation or timeout; last_failure=permission_denied"
+	if err == nil || err.Error() != want || requests != 3 {
+		t.Fatalf("parent cancellation hid the last request failure: %v, requests=%d", err, requests)
+	}
+}
+
+func TestReadinessClosedLoopbackReportsConnectionRefused(t *testing.T) {
+	clearReadinessEnvironment(t)
+	// Keep this ephemeral TCP port reserved without listening so no other
+	// listener can win a close/reuse race and turn refusal into success.
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM|syscall.SOCK_CLOEXEC, syscall.IPPROTO_TCP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Close(fd)
+	if err := syscall.Bind(fd, &syscall.SockaddrInet4{Addr: [4]byte{127, 0, 0, 1}}); err != nil {
+		t.Fatal(err)
+	}
+	bound, err := syscall.Getsockname(fd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address, ok := bound.(*syscall.SockaddrInet4)
+	if !ok || address.Port == 0 {
+		t.Fatal("did not reserve an ephemeral loopback port")
+	}
+	t.Setenv("LAYERSENTRY_KUBEONE_PORTAL_LISTEN", fmt.Sprintf("127.0.0.1:%d", address.Port))
+	p, err := newPortalReadinessProbe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.client.CloseIdleConnections()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	err = p.wait(ctx, time.Second)
+	want := "portal readiness was not established before cancellation or timeout; last_failure=connection_refused"
+	if err == nil || err.Error() != want {
+		t.Fatalf("real loopback refusal was not classified: %v", err)
 	}
 }

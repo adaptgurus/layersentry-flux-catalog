@@ -281,16 +281,47 @@ func readinessTLSConfig() (*tls.Config, error) {
 	}, nil
 }
 
+// Return only fixed diagnostic labels. Wrapped transport errors can contain
+// URLs, private paths, certificate identities or server-controlled text.
+func readinessFailureCategory(err error) string {
+	switch {
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return "connection_refused"
+	case errors.Is(err, syscall.EACCES), errors.Is(err, syscall.EPERM):
+		return "permission_denied"
+	case errors.Is(err, syscall.ENETUNREACH), errors.Is(err, syscall.EHOSTUNREACH):
+		return "network_unreachable"
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, syscall.ETIMEDOUT):
+		return "deadline"
+	case errors.Is(err, context.Canceled):
+		return "cancelled"
+	}
+	for cause := err; cause != nil; cause = errors.Unwrap(cause) {
+		if networkError, ok := cause.(net.Error); ok && networkError.Timeout() {
+			return "deadline"
+		}
+	}
+	return "transport_error"
+}
+
 // /readyz proves initialized portal transport only. It does not certify a
 // unique installed build, Kubernetes health, storage, fencing or DR readiness.
 func (p *portalReadinessProbe) wait(ctx context.Context, delay time.Duration) error {
+	lastFailure := "not_attempted"
 	for {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.endpoint, nil)
 		if err != nil {
 			return errors.New("readiness request invalid")
 		}
 		response, err := p.client.Do(req)
-		if err == nil {
+		if err != nil {
+			// Parent cancellation ends the retry budget; it must not hide a
+			// previously observed request failure behind a generic deadline.
+			contextErr := ctx.Err()
+			if lastFailure == "not_attempted" || contextErr == nil || !errors.Is(err, contextErr) {
+				lastFailure = readinessFailureCategory(err)
+			}
+		} else {
 			raw, readErr := io.ReadAll(io.LimitReader(response.Body, 65))
 			_ = response.Body.Close()
 			if response.StatusCode == http.StatusOK {
@@ -302,12 +333,18 @@ func (p *portalReadinessProbe) wait(ctx context.Context, delay time.Duration) er
 			if response.StatusCode >= 300 && response.StatusCode < 400 {
 				return errors.New("readiness redirects are not permitted")
 			}
+			lastFailure = "http_non_success"
+			if response.StatusCode >= 400 && response.StatusCode < 500 {
+				lastFailure = "http_4xx"
+			} else if response.StatusCode >= 500 && response.StatusCode < 600 {
+				lastFailure = "http_5xx"
+			}
 		}
 		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return errors.New("portal readiness was not established before cancellation or timeout")
+			return errors.New("portal readiness was not established before cancellation or timeout; last_failure=" + lastFailure)
 		case <-timer.C:
 		}
 	}

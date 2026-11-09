@@ -1,5 +1,5 @@
 {
-  "source_commit": "7622b30ef07ed16fe890a759c8308985ff4d2216",
+  "source_commit": "4586bf8230f9ce3e5c36dd6a60c6b26aae73e8bf",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -11,8 +11,8 @@
     },
     {
       "path": "cmd/layersentry-kubeone-portal/installer_test.go",
-      "sha256": "9b757bad882e1dc5d893943a21783466550b85a1f60238a628e1ad84d5ce07e9",
-      "source_blob": "a409bb49f4febde1bc84bfb07dbc2c1d9de6eae1"
+      "sha256": "9ffeeaf29f0ddb80419445607b2692af6d6dda762f7d5ad376fc82705206711b",
+      "source_blob": "41e95558a0c37ae92fd158d37181ee6c2f2d1da0"
     },
     {
       "path": "cmd/layersentry-kubeone-portal/main.go",
@@ -31,13 +31,13 @@
     },
     {
       "path": "cmd/layersentry-kubeone-portal/readiness.go",
-      "sha256": "54eab0ebbcc439fb98bdcb350bb505b67794c8f70634e4e32af6f52f970fb150",
-      "source_blob": "e3e8e7202eb36cb9ab54177c7d36c8d70ad910cb"
+      "sha256": "ca303deb94730a00e908c9b69bda3cb238d0765082512c0298cfcf1813b26eed",
+      "source_blob": "7877ce365fe33a6da5e8e963815522fa81af8569"
     },
     {
       "path": "cmd/layersentry-kubeone-portal/readiness_test.go",
-      "sha256": "150687d7b5c140eba0f50333db66d42e7579ed7e8e3d56cc60fbb80deba68f0c",
-      "source_blob": "2961a6ec35867818f9f12a4b330477c0a5d140e5"
+      "sha256": "8a26b5be86c5eef4b10e6d77b15cdb3754536cfebbe6b636fe4ffeb5d7286573",
+      "source_blob": "2994fc2201f8b8d99310e45c7e6f0c4815c533b1"
     },
     {
       "path": "cmd/layersentry-kubeone-portal/transport.go",
@@ -56,13 +56,13 @@
     },
     {
       "path": "deploy/kubeone/PORTAL_READINESS.md",
-      "sha256": "8e249913aee4b4bd9cb1fbac9d4500f1b8cfcbde482ccbf29dfc82879c9c7566",
-      "source_blob": "33e02a9e8d3310260d90471ec688e906ae030fbd"
+      "sha256": "63f9aa65c03dffe350aee75741dabd8f1c83142817989704d3e2af081b5be4a3",
+      "source_blob": "5f351d61753ce26e512c94c5006a109c27b79ee0"
     },
     {
       "path": "deploy/kubeone/install-portal.sh",
-      "sha256": "54dfcbb998aeee596789acdc226e28b12f05b61dbdc14f950a469ca4fea7cd5d",
-      "source_blob": "22d21008d3a4b7096813baa09f4dfdec80e62d72"
+      "sha256": "f4e5a3ac0df2a7d2de8a71b38928aa40aea9e9295a11835dcce94c4374e75dc0",
+      "source_blob": "cad5fd7e7c1a5e99cef38cdd1de433034a9b7b3c"
     },
     {
       "path": "deploy/kubeone/kubeone-portal.env.example",
