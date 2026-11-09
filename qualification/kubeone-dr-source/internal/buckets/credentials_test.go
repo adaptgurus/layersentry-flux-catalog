@@ -48,6 +48,7 @@ type credentialCustodyFixture struct {
 	secretObserved                 string
 	onStore                        func()
 	onVerify                       func()
+	onDelete                       func()
 }
 
 func (c *credentialCustodyFixture) StoreCredential(_ context.Context, bucket string, material IssuedCredential) (CredentialReference, error) {
@@ -70,6 +71,9 @@ func (c *credentialCustodyFixture) VerifyCredential(_ context.Context, ref Crede
 	return c.verifyErr
 }
 func (c *credentialCustodyFixture) DeleteCredential(_ context.Context, ref CredentialReference) error {
+	if c.onDelete != nil {
+		c.onDelete()
+	}
 	c.deleted = append(c.deleted, ref)
 	return c.deleteErr
 }
@@ -106,10 +110,61 @@ func (a *credentialActivatorFixture) ActivateCredential(_ context.Context, _ str
 	return a.err
 }
 
+type credentialRevocationFixture struct {
+	entries     map[string]CredentialRevocationIntent
+	complete    map[string]bool
+	begins      int
+	completions int
+	beginErr    error
+	completeErr error
+	onBegin     func()
+	onComplete  func()
+}
+
+func (j *credentialRevocationFixture) BeginRevocation(_ context.Context, ref CredentialReference) (CredentialRevocationIntent, error) {
+	j.begins++
+	if j.onBegin != nil {
+		j.onBegin()
+	}
+	if j.beginErr != nil {
+		return CredentialRevocationIntent{}, j.beginErr
+	}
+	if j.entries == nil {
+		j.entries = map[string]CredentialRevocationIntent{}
+	}
+	if _, exists := j.entries[ref.ID]; exists {
+		return CredentialRevocationIntent{}, ErrCredentialReconciliationRequired
+	}
+	v := CredentialRevocationIntent{JournalID: "intent-" + ref.ID, Reference: ref}
+	j.entries[ref.ID] = v
+	return v, nil
+}
+func (j *credentialRevocationFixture) CompleteRevocation(_ context.Context, intent CredentialRevocationIntent) error {
+	j.completions++
+	if j.onComplete != nil {
+		j.onComplete()
+	}
+	if j.completeErr != nil {
+		return j.completeErr
+	}
+	v, ok := j.entries[intent.Reference.ID]
+	if !ok || v != intent {
+		return ErrCredentialReconciliationRequired
+	}
+	if j.complete == nil {
+		j.complete = map[string]bool{}
+	}
+	if j.complete[intent.Reference.ID] {
+		return ErrCredentialReconciliationRequired
+	}
+	j.complete[intent.Reference.ID] = true
+	return nil
+}
+
 func credentialControllerFixture() (*credentialProviderFixture, *credentialCustodyFixture, ManagedCredentialController) {
 	p := &credentialProviderFixture{}
 	s := &credentialCustodyFixture{}
-	return p, s, ManagedCredentialController{Provider: p, Custody: s, Access: &credentialAccessFixture{}, Activator: &credentialActivatorFixture{}, TTL: time.Hour}
+	return p, s, ManagedCredentialController{Provider: p, Custody: s, Access: &credentialAccessFixture{}, Activator: &credentialActivatorFixture{}, Revocations: &credentialRevocationFixture{}, TTL: time.Hour}
 }
 
 func TestManagedCredentialIssueReturnsOpaqueReference(t *testing.T) {
@@ -199,18 +254,112 @@ func TestManagedCredentialRotationFailurePreservesPreviousIdentity(t *testing.T)
 }
 
 func TestManagedCredentialRevokeUsesFixedErrors(t *testing.T) {
-	p, s, c := credentialControllerFixture()
 	ref := CredentialReference{ID: "custody-old", ProviderCredentialID: "provider-old", ExpiresAt: time.Now().Add(time.Hour)}
-	p.revokeErr = errors.New("provider " + credentialCanary)
-	err := c.Revoke(context.Background(), ref)
-	if !errors.Is(err, ErrCredentialProviderUnavailable) || strings.Contains(err.Error(), credentialCanary) {
-		t.Fatal(err)
+	for _, tc := range []struct {
+		name     string
+		provider bool
+	}{
+		{"provider_unknown", true}, {"custody_unknown", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, s, c := credentialControllerFixture()
+			if tc.provider {
+				p.revokeErr = errors.New("provider " + credentialCanary)
+			} else {
+				s.deleteErr = errors.New("custody " + credentialCanary)
+			}
+			err := c.Revoke(context.Background(), ref)
+			if !errors.Is(err, ErrCredentialReconciliationRequired) || strings.Contains(err.Error(), credentialCanary) {
+				t.Fatal("unknown revoke outcome not fail closed or leaked", err)
+			}
+			j := c.Revocations.(*credentialRevocationFixture)
+			if j.begins != 1 || j.completions != 0 || len(p.revoked) != 1 {
+				t.Fatal("unknown provider effect lacked durable intent", j, p.revoked)
+			}
+			if tc.provider && len(s.deleted) != 0 {
+				t.Fatal("custody deleted after unknown provider outcome")
+			}
+			if _, retryErr := func() (CredentialReference, error) { return CredentialReference{}, c.Revoke(context.Background(), ref) }(); !errors.Is(retryErr, ErrCredentialReconciliationRequired) || len(p.revoked) != 1 {
+				t.Fatal("UNKNOWN intent allowed blind provider replay", retryErr)
+			}
+		})
 	}
-	p.revokeErr = nil
-	s.deleteErr = errors.New("custody " + credentialCanary)
-	err = c.Revoke(context.Background(), ref)
-	if !errors.Is(err, ErrCredentialCustodyUnavailable) || strings.Contains(err.Error(), credentialCanary) {
-		t.Fatal(err)
+}
+
+func TestManagedCredentialRevokeCancellationAndDurableIntent(t *testing.T) {
+	ref := CredentialReference{ID: "custody-old", ProviderCredentialID: "provider-old", ExpiresAt: time.Now().Add(time.Hour)}
+	cases := []string{"entry", "after_journal", "during_provider", "during_custody", "during_completion", "success", "missing_journal"}
+	for _, stage := range cases {
+		t.Run(stage, func(t *testing.T) {
+			p, s, c := credentialControllerFixture()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			j := c.Revocations.(*credentialRevocationFixture)
+			switch stage {
+			case "entry":
+				cancel()
+			case "after_journal":
+				j.onBegin = cancel
+			case "during_provider":
+				p.onRevoke = func(id string) {
+					if id == ref.ProviderCredentialID {
+						cancel()
+					}
+				}
+			case "during_custody":
+				s.onDelete = cancel
+			case "during_completion":
+				j.onComplete = cancel
+			case "missing_journal":
+				c.Revocations = nil
+			}
+			err := c.Revoke(ctx, ref)
+			if stage == "success" {
+				if err != nil || j.begins != 1 || j.completions != 1 || len(p.revoked) != 1 || len(s.deleted) != 1 {
+					t.Fatal("revoke did not durably finish", err, j, p.revoked, s.deleted)
+				}
+				return
+			}
+			if stage == "entry" || stage == "missing_journal" {
+				if len(p.revoked) != 0 || len(s.deleted) != 0 || j.begins != 0 {
+					t.Fatal("unsafe preflight reached side effects", err)
+				}
+			} else {
+				if !errors.Is(err, ErrCredentialReconciliationRequired) {
+					t.Fatalf("canceled revocation not reconciled: %v", err)
+				}
+				if j.begins != 1 {
+					t.Fatal("side effect preceded durable intent")
+				}
+				if stage == "after_journal" && len(p.revoked) != 0 {
+					t.Fatal("canceled post-admission reached provider")
+				}
+				if stage == "during_provider" && len(s.deleted) != 0 {
+					t.Fatal("canceled provider call reached custody")
+				}
+				if stage == "during_custody" && j.completions != 0 {
+					t.Fatal("canceled custody was marked complete")
+				}
+			}
+			if stage == "entry" || stage == "missing_journal" {
+				return
+			}
+			before := len(p.revoked)
+			if err2 := c.Revoke(context.Background(), ref); !errors.Is(err2, ErrCredentialReconciliationRequired) || len(p.revoked) != before {
+				t.Fatal("ambiguous/canceled operation replayed provider revoke", err2)
+			}
+		})
+	}
+}
+
+func TestManagedCredentialRevokeRejectsJournalFailureBeforeProvider(t *testing.T) {
+	p, s, c := credentialControllerFixture()
+	j := c.Revocations.(*credentialRevocationFixture)
+	j.beginErr = errors.New("journal-failure " + credentialCanary)
+	ref := CredentialReference{ID: "custody-old", ProviderCredentialID: "provider-old", ExpiresAt: time.Now().Add(time.Hour)}
+	err := c.Revoke(context.Background(), ref)
+	if !errors.Is(err, ErrCredentialReconciliationRequired) || strings.Contains(err.Error(), credentialCanary) || len(p.revoked) != 0 || len(s.deleted) != 0 {
+		t.Fatal("undurable revoke intent reached provider or leaked", err)
 	}
 }
 

@@ -57,12 +57,29 @@ type CredentialActivator interface {
 	ActivateCredential(context.Context, string, CredentialReference, CredentialReference) error
 }
 
+// CredentialRevocationIntent binds the exact durable pre-mutation record.
+// It never contains secret material or authorizes a blind replay.
+type CredentialRevocationIntent struct {
+	JournalID string
+	Reference CredentialReference
+}
+
+// CredentialRevocationJournal must durably and atomically admit each exact
+// reference at most once before provider mutation. An existing/uncertain
+// record MUST fail closed, never replay. Complete records the confirmed final
+// state after provider and custody operations have both succeeded.
+type CredentialRevocationJournal interface {
+	BeginRevocation(context.Context, CredentialReference) (CredentialRevocationIntent, error)
+	CompleteRevocation(context.Context, CredentialRevocationIntent) error
+}
+
 type ManagedCredentialController struct {
-	Provider  CredentialProvider
-	Custody   CredentialCustody
-	Access    CredentialAccessVerifier
-	Activator CredentialActivator
-	TTL       time.Duration
+	Provider    CredentialProvider
+	Custody     CredentialCustody
+	Access      CredentialAccessVerifier
+	Activator   CredentialActivator
+	Revocations CredentialRevocationJournal
+	TTL         time.Duration
 }
 
 const credentialHandoffMargin = 5 * time.Minute
@@ -262,18 +279,47 @@ func (c ManagedCredentialController) Rotate(ctx context.Context, bucket string, 
 	return next, nil
 }
 
+// Revoke requires a durable, single-use intent before any provider effect.
+// Context cancellation before admission has no effects. Every ambiguous
+// provider/custody result leaves the pre-admitted intent UNKNOWN, blocking
+// blind retries until independently reconciled. Journal errors are redacted.
 func (c ManagedCredentialController) Revoke(ctx context.Context, ref CredentialReference) error {
+	if ctx == nil || ctx.Err() != nil {
+		return ErrCredentialVerificationFailed
+	}
 	if err := c.validate(); err != nil {
 		return err
 	}
-	if ref.ID == "" || ref.ProviderCredentialID == "" {
+	if c.Revocations == nil {
+		return ErrCredentialReconciliationRequired
+	}
+	if ref.ID == "" || ref.ProviderCredentialID == "" || ref.ExpiresAt.IsZero() {
 		return ErrCredentialVerificationFailed
 	}
+	intent, err := c.Revocations.BeginRevocation(ctx, ref)
+	if err != nil || intent.JournalID == "" || !sameCredentialReference(intent.Reference, ref) {
+		return ErrCredentialReconciliationRequired
+	}
+	if ctx.Err() != nil {
+		return ErrCredentialReconciliationRequired
+	}
 	if err := c.Provider.RevokeCredential(ctx, ref.ProviderCredentialID); err != nil {
-		return ErrCredentialProviderUnavailable
+		return ErrCredentialReconciliationRequired
+	}
+	if ctx.Err() != nil {
+		return ErrCredentialReconciliationRequired
 	}
 	if err := c.Custody.DeleteCredential(ctx, ref); err != nil {
-		return ErrCredentialCustodyUnavailable
+		return ErrCredentialReconciliationRequired
+	}
+	if ctx.Err() != nil {
+		return ErrCredentialReconciliationRequired
+	}
+	if err := c.Revocations.CompleteRevocation(ctx, intent); err != nil {
+		return ErrCredentialReconciliationRequired
+	}
+	if ctx.Err() != nil {
+		return ErrCredentialReconciliationRequired
 	}
 	return nil
 }
