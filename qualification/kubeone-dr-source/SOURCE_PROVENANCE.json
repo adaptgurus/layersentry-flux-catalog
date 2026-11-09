@@ -1,5 +1,5 @@
 {
-  "source_commit": "9ea8eefefbd35572d0ed76488a92df0de97f1059",
+  "source_commit": "bf282d8073d76ceba2a272c07d257edc8dd4e4cd",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -261,8 +261,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_config.go",
-      "sha256": "7ee762fc6eb8ab44d1f90fe6d321d99cbe0944ba4c0562f6b3782f7fe2392d21",
-      "source_blob": "86f13e1f130a8f2025b8d38ca447e9426cd16714"
+      "sha256": "d05359ceb633198b49525fd355beadda33b7964d0d2cbf9ffdd8e4a641a304cd",
+      "source_blob": "2680b24d692e1ece28d53f0c677fea90d03365ff"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_action.go",
@@ -385,6 +385,11 @@
       "source_blob": "799cc397f903ce42a1870b7859cae6d8c26d4d9b"
     },
     {
+      "path": "internal/kubeone/lifecycle/recovery_dr_managed_credential_ref_test.go",
+      "sha256": "92bba9f0a7e4691bf08beb3e0465b6ee2470fe428206645d571179ea43b22348",
+      "source_blob": "f28a5f1f14a7be2b28f9cd7e2f52383c77e92b35"
+    },
+    {
       "path": "internal/kubeone/lifecycle/recovery_dr_pvc_binding_test.go",
       "sha256": "5e9236bcb9c78511545e6602c585d12d1e91dd8b4617009689c209d16f8b8ae5",
       "source_blob": "4ba0d7d71868353735d2955fd43c32a9d280ea2b"
@@ -431,8 +436,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_workflow_test.go",
-      "sha256": "1f34da3fc20b890b2823fb61dd7352d3a08afd69c52e7ad4cde5c03ae2084c32",
-      "source_blob": "c4bf5b5c4d96ece547b95d0f20a6f1946f447177"
+      "sha256": "142767d4c9e2154b016936b6c8b6a7488c3eaa9c30bee166820758d56a2c88a0",
+      "source_blob": "424c940f64f0ef0a46b294207237318154d9dfa5"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_workload_rpo_test.go",

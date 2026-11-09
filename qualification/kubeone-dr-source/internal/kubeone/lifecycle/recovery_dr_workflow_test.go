@@ -324,8 +324,8 @@ func setupDRExecutionFixture(t *testing.T) *drTestSite {
 		RecoveryVerifierPublicKeyFile: appPub,
 		RecoveryVerificationFile:      filepath.Join(root, "app-recovery.json"),
 		Workloads: []DRWorkloadProfile{
-			{Namespace: "app-http", Kind: "STATELESS", BackupName: "ls-http-dc", FailbackBackupName: "ls-http-dr", StorageLocation: "dr-s3"},
-			{Namespace: "app-pg", Kind: "STATEFUL", BackupName: "ls-db-dc", FailbackBackupName: "ls-db-dr", StorageLocation: "dr-s3", PVCName: "postgres-data", VolumeRecoveryKind: "FSB_KOPIA"},
+			{Namespace: "app-http", Kind: "STATELESS", BackupName: "ls-http-dc", FailbackBackupName: "ls-http-dr", StorageLocation: "dr-s3", ManagedCredentialRef: "dr-s3-managed"},
+			{Namespace: "app-pg", Kind: "STATEFUL", BackupName: "ls-db-dc", FailbackBackupName: "ls-db-dr", StorageLocation: "dr-s3", ManagedCredentialRef: "dr-s3-managed", PVCName: "postgres-data", VolumeRecoveryKind: "FSB_KOPIA"},
 		},
 	}
 	p.recovery.config.DRExecutions = []DRExecutionProfile{profile}

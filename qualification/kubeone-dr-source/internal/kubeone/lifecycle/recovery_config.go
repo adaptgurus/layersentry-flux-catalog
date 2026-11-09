@@ -43,13 +43,14 @@ type DRClusterTarget struct {
 }
 
 type DRWorkloadProfile struct {
-	Namespace          string `json:"namespace"`
-	Kind               string `json:"kind"` // STATELESS or STATEFUL
-	BackupName         string `json:"backup_name"`
-	FailbackBackupName string `json:"failback_backup_name"`
-	StorageLocation    string `json:"storage_location"`
-	PVCName            string `json:"pvc_name,omitempty"`
-	VolumeRecoveryKind string `json:"volume_recovery_kind,omitempty"`
+	Namespace            string `json:"namespace"`
+	Kind                 string `json:"kind"` // STATELESS or STATEFUL
+	BackupName           string `json:"backup_name"`
+	FailbackBackupName   string `json:"failback_backup_name"`
+	StorageLocation      string `json:"storage_location"`
+	ManagedCredentialRef string `json:"managed_credential_ref"`
+	PVCName              string `json:"pvc_name,omitempty"`
+	VolumeRecoveryKind   string `json:"volume_recovery_kind,omitempty"`
 }
 
 // DRExecutionProfile.ServiceRoute is the public application route moved by
@@ -246,13 +247,16 @@ func (cfg RecoveryConfig) Validate() error {
 		}
 		for i, w := range e.Workloads {
 			if !kubernetesNamespacePattern.MatchString(w.Namespace) ||
-				!recoveryIDPattern.MatchString(w.BackupName) || !recoveryIDPattern.MatchString(w.FailbackBackupName) || w.BackupName == w.FailbackBackupName || !recoveryIDPattern.MatchString(w.StorageLocation) ||
+				!recoveryIDPattern.MatchString(w.BackupName) || !recoveryIDPattern.MatchString(w.FailbackBackupName) || w.BackupName == w.FailbackBackupName || !recoveryIDPattern.MatchString(w.StorageLocation) || !recoveryIDPattern.MatchString(w.ManagedCredentialRef) ||
 				(i == 0 && w.Kind != "STATELESS") || (i == 1 && w.Kind != "STATEFUL") ||
 				(i == 0 && (w.PVCName != "" || w.VolumeRecoveryKind != "")) ||
 				(i == 1 && (!kubernetesNamespacePattern.MatchString(w.PVCName) ||
 					(w.VolumeRecoveryKind != "FSB_KOPIA" && w.VolumeRecoveryKind != "CSI_DATAMOVER"))) {
 				return fmt.Errorf("%w: requires one exact stateless and stateful workload", ErrValidation)
 			}
+		}
+		if e.Workloads[0].ManagedCredentialRef != e.Workloads[1].ManagedCredentialRef {
+			return fmt.Errorf("%w: DR workloads must use one managed storage credential reference", ErrValidation)
 		}
 		if e.Workloads[0].Namespace == e.Workloads[1].Namespace {
 			return fmt.Errorf("%w: distinct stateless and stateful namespaces required", ErrValidation)
