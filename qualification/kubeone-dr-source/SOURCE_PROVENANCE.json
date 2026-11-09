@@ -1,5 +1,5 @@
 {
-  "source_commit": "e054e0b32b56d169ba1edd232607c58578aa442f",
+  "source_commit": "d90455940d161a24ef83326ebf9246fe0186957a",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -91,13 +91,13 @@
     },
     {
       "path": "internal/buckets/revocation_file_journal.go",
-      "sha256": "03d7c00c19afaf5491357e00c05e7b5ca2c77f8f097e0bd4ec1c96c522148b03",
-      "source_blob": "d8b20152ded9497a274ae6bc109b8228a88ba3b7"
+      "sha256": "06ac2f20619f5844fc8dfc0fab0c1219dba7d3eae15a8d93c57865ca24107125",
+      "source_blob": "2adfd8a689686957e487c56d52da29ed008960ea"
     },
     {
       "path": "internal/buckets/revocation_file_journal_test.go",
-      "sha256": "108c5929e2b3fc98b5bffebc5780d33223994f7d3ea6f22575f29b5e3bb76204",
-      "source_blob": "b5e6400045990736347a99a596dff19352d52aba"
+      "sha256": "4d9b3e353ba964b420c6ab57f4aefb2fe2944383bf89ddf0eb841a379fbde4f9",
+      "source_blob": "ce39d7f73b32644533638d5bd2b9ed06b8aea3f9"
     },
     {
       "path": "internal/kubeone/apirelay/config.go",

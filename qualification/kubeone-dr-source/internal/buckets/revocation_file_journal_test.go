@@ -3,6 +3,7 @@ package buckets
 import (
 	"context"
 	"errors"
+	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,65 @@ import (
 
 func revocationTestReference() CredentialReference {
 	return CredentialReference{ID: "custody-original", ProviderCredentialID: "provider-original", ExpiresAt: time.Now().Add(time.Hour)}
+}
+
+// A successful fsync on tmpfs does not guarantee reboot persistence. This
+// synthetic check and a real /dev/shm-mounted private directory both fail.
+func TestRevocationJournalRejectsVolatileFilesystem(t *testing.T) {
+	const (
+		xfsMagic     uint64 = 0x58465342
+		tmpfsMagic   uint64 = 0x01021994
+		ramfsMagic   uint64 = 0x858458f6
+		overlayMagic uint64 = 0x794c7630
+		nfsMagic     uint64 = 0x6969
+	)
+	for _, tc := range []struct {
+		name   string
+		fs     uint64
+		accept bool
+	}{
+		{"xfs_persistent", xfsMagic, true},
+		{"ext4_persistent", uint64(unix.EXT4_SUPER_MAGIC), true},
+		{"btrfs_persistent", uint64(unix.BTRFS_SUPER_MAGIC), true},
+		{"tmpfs_volatile", tmpfsMagic, false},
+		{"ramfs_volatile", ramfsMagic, false},
+		{"overlay_unknown", overlayMagic, false},
+		{"nfs_remote", nfsMagic, false},
+		{"unknown", 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := credentialJournalPersistentFSType(tc.fs); got != tc.accept {
+				t.Fatalf("filesystem allowlist: got %v, want %v", got, tc.accept)
+			}
+		})
+	}
+	// /dev/shm is Linux tmpfs on the native and hosted test runners.
+	// An unavailable/unwritable mount is a test-environment limitation,
+	// never evidence of qualified volatile storage.
+	fs := unix.Statfs_t{}
+	if err := unix.Statfs("/dev/shm", &fs); err != nil || uint64(fs.Type) != tmpfsMagic {
+		t.Skip("real tmpfs /dev/shm unavailable; synthetic type test remains")
+	}
+	dir, err := os.MkdirTemp("/dev/shm", "ls-credential-volatile-test-")
+	if err != nil {
+		t.Skipf("cannot create disposable owned tmpfs test directory: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	if err := os.Chmod(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	journal := FileCredentialRevocationJournal{Directory: dir}
+	ref := revocationTestReference()
+	if _, err := journal.BeginRevocation(context.Background(), ref); !errors.Is(err, ErrCredentialReconciliationRequired) {
+		t.Fatal("tmpfs journal admitted a revocation despite volatile backing", err)
+	}
+	if err := journal.CheckNotAdmitted(context.Background(), ref); !errors.Is(err, ErrCredentialReconciliationRequired) {
+		t.Fatal("tmpfs journal permitted replay preflight", err)
+	}
+	items, err := os.ReadDir(dir)
+	if err != nil || len(items) != 0 {
+		t.Fatal("volatile rejected journal wrote files", err, items)
+	}
 }
 
 func TestFileRevocationJournalDurableIntentAndCompletion(t *testing.T) {

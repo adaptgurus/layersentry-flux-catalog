@@ -56,14 +56,30 @@ func (j FileCredentialRevocationJournal) openPrivateDir() (*os.File, error) {
 		dir.Close()
 		return nil, ErrCredentialReconciliationRequired
 	}
-	// The revocation intent must not live on a shared NFS filesystem where
-	// independent controllers can disagree on lock/journal ownership.
+	// Durability is a positive assertion, not "anything other than NFS".
+	// tmpfs/ramfs lose fsynced records after reboot; overlay/FUSE/remote
+	// filesystems may not provide the expected local persistent custody.
+	// Only explicitly reviewed local disk filesystems qualify here.
 	var filesystem unix.Statfs_t
-	if err := unix.Fstatfs(int(dir.Fd()), &filesystem); err != nil || uint64(filesystem.Type) == uint64(unix.NFS_SUPER_MAGIC) {
+	if err := unix.Fstatfs(int(dir.Fd()), &filesystem); err != nil ||
+		!credentialJournalPersistentFSType(uint64(filesystem.Type)) {
 		dir.Close()
 		return nil, ErrCredentialReconciliationRequired
 	}
 	return dir, nil
+}
+
+// This allowlist is deliberately narrow. Even an allowed filesystem is not
+// evidence of survival across power loss, so real reboot/replay admission and
+// journal ownership tests remain required before production use.
+func credentialJournalPersistentFSType(kind uint64) bool {
+	const xfsSuperMagic uint64 = 0x58465342 // Linux XFS_SUPER_MAGIC
+	switch kind {
+	case xfsSuperMagic, uint64(unix.EXT4_SUPER_MAGIC), uint64(unix.BTRFS_SUPER_MAGIC):
+		return true
+	default:
+		return false
+	}
 }
 
 func sameCredentialReference(a, b CredentialReference) bool {
