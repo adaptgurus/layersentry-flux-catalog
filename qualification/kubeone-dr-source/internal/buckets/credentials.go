@@ -103,6 +103,20 @@ func (c ManagedCredentialController) cleanupProviderIdentity(ctx context.Context
 	return nil
 }
 
+// abortUnactivatedCredential is valid only before durable activation. It
+// performs bounded cleanup without inheriting the canceled caller context;
+// either uncertain cleanup makes the identity require reconciliation.
+func (c ManagedCredentialController) abortUnactivatedCredential(ctx context.Context, ref CredentialReference) error {
+	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), credentialCleanupTimeout)
+	custodyErr := c.Custody.DeleteCredential(cleanup, ref)
+	cancel()
+	providerErr := c.cleanupProviderIdentity(ctx, ref.ProviderCredentialID)
+	if custodyErr != nil || providerErr != nil {
+		return ErrCredentialReconciliationRequired
+	}
+	return ErrCredentialVerificationFailed
+}
+
 // Issue stores a new provider identity in protected custody and verifies it
 // before returning an opaque reference. It is NOT yet proof of authenticated
 // object access, and must not by itself activate or retire an existing writer.
@@ -114,6 +128,9 @@ func (c ManagedCredentialController) Issue(ctx context.Context, bucket string) (
 // active identity can never cause that identity to be revoked by validation
 // cleanup. Such an issuer response is ambiguous and requires reconciliation.
 func (c ManagedCredentialController) issueExcluding(ctx context.Context, bucket, activeProviderID string) (CredentialReference, error) {
+	if ctx == nil || ctx.Err() != nil {
+		return CredentialReference{}, ErrCredentialVerificationFailed
+	}
 	if err := c.validate(); err != nil {
 		return CredentialReference{}, err
 	}
@@ -124,6 +141,18 @@ func (c ManagedCredentialController) issueExcluding(ctx context.Context, bucket,
 	defer wipeCredential(&material)
 	if activeProviderID != "" && material.ProviderCredentialID == activeProviderID {
 		return CredentialReference{}, ErrCredentialReconciliationRequired
+	}
+	// The issuer may have mutated provider state before returning even when
+	// it ignores cancellation. Never persist the returned material from a
+	// canceled request; a missing identity cannot be safely reconciled.
+	if ctx.Err() != nil {
+		if material.ProviderCredentialID == "" {
+			return CredentialReference{}, ErrCredentialReconciliationRequired
+		}
+		if err := c.cleanupProviderIdentity(ctx, material.ProviderCredentialID); err != nil {
+			return CredentialReference{}, err
+		}
+		return CredentialReference{}, ErrCredentialVerificationFailed
 	}
 	now := time.Now()
 	// Reject unusable/near-expired credentials before custody or any rotation
@@ -153,15 +182,14 @@ func (c ManagedCredentialController) issueExcluding(ctx context.Context, bucket,
 		}
 		return CredentialReference{}, ErrCredentialCustodyUnavailable
 	}
+	if ctx.Err() != nil {
+		return CredentialReference{}, c.abortUnactivatedCredential(ctx, ref)
+	}
 	if err := c.Custody.VerifyCredential(ctx, ref); err != nil {
-		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), credentialCleanupTimeout)
-		custodyErr := c.Custody.DeleteCredential(cleanup, ref)
-		cancel()
-		providerCleanupErr := c.cleanupProviderIdentity(ctx, material.ProviderCredentialID)
-		if custodyErr != nil || providerCleanupErr != nil {
-			return CredentialReference{}, ErrCredentialReconciliationRequired
-		}
-		return CredentialReference{}, ErrCredentialVerificationFailed
+		return CredentialReference{}, c.abortUnactivatedCredential(ctx, ref)
+	}
+	if ctx.Err() != nil {
+		return CredentialReference{}, c.abortUnactivatedCredential(ctx, ref)
 	}
 	return ref, nil
 }
@@ -171,6 +199,9 @@ func (c ManagedCredentialController) issueExcluding(ctx context.Context, bucket,
 // check is insufficient. With no real verifier/activator, it fails before
 // creating a credential; the current lab has no enabled provider adapter.
 func (c ManagedCredentialController) Rotate(ctx context.Context, bucket string, previous CredentialReference) (CredentialReference, error) {
+	if ctx == nil || ctx.Err() != nil {
+		return CredentialReference{}, ErrCredentialVerificationFailed
+	}
 	if err := c.validate(); err != nil {
 		return CredentialReference{}, err
 	}
@@ -189,29 +220,44 @@ func (c ManagedCredentialController) Rotate(ctx context.Context, bucket string, 
 		// NOT revoke or delete either reference from this ambiguous state.
 		return next, ErrCredentialReconciliationRequired
 	}
+	if ctx.Err() != nil {
+		return CredentialReference{}, c.abortUnactivatedCredential(ctx, next)
+	}
 	if err := c.Access.VerifyObjectAccess(ctx, bucket, next); err != nil {
-		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), credentialCleanupTimeout)
-		custodyErr := c.Custody.DeleteCredential(cleanup, next)
-		cancel()
-		providerErr := c.cleanupProviderIdentity(ctx, next.ProviderCredentialID)
-		if custodyErr != nil || providerErr != nil {
-			return CredentialReference{}, ErrCredentialReconciliationRequired
-		}
-		return CredentialReference{}, ErrCredentialVerificationFailed
+		return CredentialReference{}, c.abortUnactivatedCredential(ctx, next)
+	}
+	// Fail closed even if the access adapter ignored cancellation. We may
+	// still safely clean the candidate because activation has not started.
+	if ctx.Err() != nil {
+		return CredentialReference{}, c.abortUnactivatedCredential(ctx, next)
 	}
 	if err := c.Activator.ActivateCredential(ctx, bucket, previous, next); err != nil {
 		// The durable cutover outcome may be unknown. Keep both for explicit
 		// reconciliation rather than revoking a possibly active identity.
 		return next, ErrCredentialReconciliationRequired
 	}
+	// Activation might already be committed; never attempt rollback on a
+	// canceled context, and never retire the previous key without proof.
+	if ctx.Err() != nil {
+		return next, ErrCredentialReconciliationRequired
+	}
 	if err := c.Access.VerifyObjectAccess(ctx, bucket, next); err != nil {
+		return next, ErrCredentialReconciliationRequired
+	}
+	if ctx.Err() != nil {
 		return next, ErrCredentialReconciliationRequired
 	}
 	if err := c.Provider.RevokeCredential(ctx, previous.ProviderCredentialID); err != nil {
 		return next, ErrCredentialReconciliationRequired
 	}
+	if ctx.Err() != nil {
+		return next, ErrCredentialReconciliationRequired
+	}
 	if err := c.Custody.DeleteCredential(ctx, previous); err != nil {
 		return next, ErrCredentialCustodyUnavailable
+	}
+	if ctx.Err() != nil {
+		return next, ErrCredentialReconciliationRequired
 	}
 	return next, nil
 }
