@@ -1,5 +1,5 @@
 {
-  "source_commit": "ff942e62d4e25d2d9808470618dd79416570ce35",
+  "source_commit": "0a7b716afc235d151fc313248fa58bdfdc14738a",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -371,8 +371,8 @@
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_leader_watchdog.go",
-      "sha256": "6b89889f17acaedeaa2c9df2d799aa7262424a43363ccc484a3baec153ed66a6",
-      "source_blob": "e3f589d4c5b1545ba99abdf68d3c98152535848a"
+      "sha256": "aa4621cf201cc7b271a16a1af75b31b08ac6704b728a2d6de7545b240c54270a",
+      "source_blob": "687294b8631b16dea08d82576de0e0eb630b7064"
     },
     {
       "path": "internal/kubeone/lifecycle/recovery_dr_leader_watchdog_test.go",

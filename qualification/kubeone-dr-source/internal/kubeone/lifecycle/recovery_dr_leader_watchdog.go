@@ -9,7 +9,8 @@ import (
 // The DR leader must renew its Kubernetes Lease even while Velero or
 // signed evidence readbacks take longer than a regular monitoring tick.
 // On loss of either local inode continuity or native distributed ownership,
-// cancel all controller-owned operations and stop the decision loop. This
+// cancel all controller-owned operations BEFORE signaling failure and stop
+// the decision loop, so a consumer cannot race ahead of cancellation. This
 // does NOT replace independent physical writer/storage fencing.
 func startDRAutomationLeaseWatchdog(
 	ctx context.Context,
@@ -23,8 +24,8 @@ func startDRAutomationLeaseWatchdog(
 	go func() {
 		defer close(failures)
 		if cadence <= 0 {
-			failures <- fmt.Errorf("%w: invalid DR controller heartbeat cadence", ErrValidation)
 			cancel()
+			failures <- fmt.Errorf("%w: invalid DR controller heartbeat cadence", ErrValidation)
 			return
 		}
 		ticker := time.NewTicker(cadence)
@@ -35,18 +36,18 @@ func startDRAutomationLeaseWatchdog(
 				return
 			case <-ticker.C:
 				if err := local.Check(source); err != nil {
-					failures <- fmt.Errorf("%w: DR local owner lock replaced during heartbeat", ErrValidation)
 					cancel()
+					failures <- fmt.Errorf("%w: DR local owner lock replaced during heartbeat", ErrValidation)
 					return
 				}
 				if err := distributed.Renew(ctx); err != nil {
-					failures <- fmt.Errorf("%w: DR native Kubernetes leader renewal failed: %v", ErrValidation, err)
 					cancel()
+					failures <- fmt.Errorf("%w: DR native Kubernetes leader renewal failed: %v", ErrValidation, err)
 					return
 				}
 				if err := local.Check(source); err != nil {
-					failures <- fmt.Errorf("%w: DR local owner lock changed during leader renewal", ErrValidation)
 					cancel()
+					failures <- fmt.Errorf("%w: DR local owner lock changed during leader renewal", ErrValidation)
 					return
 				}
 			}
