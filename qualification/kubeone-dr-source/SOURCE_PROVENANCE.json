@@ -1,5 +1,5 @@
 {
-  "source_commit": "be38e9850a35ea378f09004026528821db45d08b",
+  "source_commit": "9ea8eefefbd35572d0ed76488a92df0de97f1059",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -78,6 +78,16 @@
       "path": "go.sum",
       "sha256": "78f5e51df71360c9896ecea529eca66857481790d4c6ffa41741e98f96f1103c",
       "source_blob": "4c83c887904ec851467a2fac419df3b06bd4920d"
+    },
+    {
+      "path": "internal/buckets/credentials.go",
+      "sha256": "420fcc31d0f3ceb6db0c57942944908de95d5933f51bedd718d0b0b09b97a744",
+      "source_blob": "dd53ec1fefa5999539bbed265e9a67720577d735"
+    },
+    {
+      "path": "internal/buckets/credentials_test.go",
+      "sha256": "2bc519be0d041435232a123ba78f64bbce873bf9ef64836209f06fdc187aeab3",
+      "source_blob": "6a4b4ba7f143529bc96a366cefe3330f8feafa63"
     },
     {
       "path": "internal/kubeone/apirelay/config.go",
