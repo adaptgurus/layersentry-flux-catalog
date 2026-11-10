@@ -198,3 +198,27 @@ func TestZeroTouchDRPolicyRequiresUniqueTenantBoundSite(t *testing.T) {
 		})
 	}
 }
+
+// A symlink replacement of the entire source workspace must not redirect
+// the single-use enrollment intent into a different ownership directory.
+func TestZeroTouchDRRejectsReplacedWorkspaceDirectory(t *testing.T) {
+	portal, _, ws, _ := provisionAdmissionFixture(t)
+	enableSyntheticZeroTouchDR(portal)
+	primary := ProvisionJob{ID: strings.Repeat("c", 32), ClusterID: ws.ClusterID, Status: "SUCCEEDED", EvidenceLabel: "LIVE_PROVEN", RequestedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	if err := writeBoundedJob(ws, provisionJobPath(ws), ".test-ztd-primary-*", primary); err != nil {
+		t.Fatal(err)
+	}
+	archived := ws.Directory + "-original"
+	if err := os.Rename(ws.Directory, archived); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(archived, ws.Directory); err != nil {
+		t.Fatal(err)
+	}
+	if err := portal.queueZeroTouchDR(ws, primary); err == nil {
+		t.Fatal("replaced workspace directory admitted enrollment")
+	}
+	if _, err := os.Lstat(filepath.Join(archived, zeroTouchDRIntentFile)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("intent was created under replaced workspace path", err)
+	}
+}

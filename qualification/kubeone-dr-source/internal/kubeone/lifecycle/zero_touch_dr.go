@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 const zeroTouchDRIntentFile = ".layersentry-zero-touch-dr-intent.json"
@@ -72,19 +74,36 @@ func publishZeroTouchDRIntent(ws Workspace, intent ZeroTouchDRIntent) error {
 	if err != nil || !st.IsDir() || st.Mode().Perm() != 0700 {
 		return ErrValidation
 	}
-	file, err := os.OpenFile(zeroTouchDRIntentPath(ws), os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+	owner, ok := st.Sys().(*syscall.Stat_t)
+	if !ok || owner.Uid != uint32(os.Geteuid()) ||
+		!filepath.IsAbs(ws.Directory) || filepath.Clean(ws.Directory) != ws.Directory {
+		return ErrValidation
+	}
+	resolved, err := filepath.EvalSymlinks(ws.Directory)
+	if err != nil || resolved != ws.Directory {
+		return ErrValidation
+	}
+	directory, err := os.Open(ws.Directory)
 	if err != nil {
 		return ErrValidation
 	}
+	defer directory.Close()
+	opened, err := directory.Stat()
+	if err != nil || !os.SameFile(st, opened) {
+		return ErrValidation
+	}
+	// All I/O uses the verified directory handle, not a replaceable parent
+	// pathname. O_EXCL ensures any existing or ambiguous intent blocks replay.
+	fd, err := unix.Openat(int(directory.Fd()), zeroTouchDRIntentFile,
+		unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+	if err != nil {
+		return ErrValidation
+	}
+	file := os.NewFile(uintptr(fd), zeroTouchDRIntentFile)
 	count, writeErr := file.Write(raw)
 	syncErr := file.Sync()
 	closeErr := file.Close()
-	directory, dirErr := os.Open(ws.Directory)
-	if dirErr != nil || directory == nil {
-		return ErrValidation
-	}
 	dirSyncErr := directory.Sync()
-	directory.Close()
 	if writeErr != nil || count != len(raw) || syncErr != nil || closeErr != nil || dirSyncErr != nil {
 		return ErrValidation
 	}
