@@ -20,6 +20,13 @@ func (p *Portal) reconcileZeroTouchDRAfterStartup() (admitted, blocked int) {
 		if _, enabled := p.zeroTouchDRPolicy(ws); !enabled {
 			continue
 		}
+		// A previously successful primary may subsequently be suspended by
+		// its original administrator. Historical success is not authority
+		// to enqueue NEW DR operations while its workspace is suspended.
+		if ws.Suspended {
+			blocked++
+			continue
+		}
 		var primary ProvisionJob
 		err := readBoundedJob(provisionJobPath(ws), &primary)
 		if errors.Is(err, os.ErrNotExist) {

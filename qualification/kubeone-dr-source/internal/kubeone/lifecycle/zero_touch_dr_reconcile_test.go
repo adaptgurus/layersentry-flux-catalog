@@ -133,3 +133,34 @@ func TestZeroTouchDRStartupDoesNotEnrollUnknownOrRewriteConflict(t *testing.T) {
 		})
 	}
 }
+
+func TestZeroTouchDRStartupDoesNotEnrollSuspendedPrimary(t *testing.T) {
+	portal, handler, ws, runner := provisionAdmissionFixture(t)
+	job := testSuccessForReconcile(t, ws, "SUCCEEDED", "LIVE_PROVEN")
+	// The owner's registry changes the original source into a suspended
+	// cluster after the historical successful provision receipt was written.
+	suspended := ws
+	suspended.Suspended = true
+	suspended.Provisionable = false
+	suspended.SelfServiceLifecycle = false
+	portal.Client.registry.byID[registryKey(ws.Tenant, ws.ClusterID)] = suspended
+	if err := portal.ConfigureRecovery(testZeroTouchRecoveryConfig(t, ws)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(zeroTouchDRIntentPath(ws)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("historical success enrolled a suspended cluster", err)
+	}
+	if err := portal.queueZeroTouchDR(suspended, job); err == nil {
+		t.Fatal("direct queued admission bypassed source suspension")
+	}
+	result := portalRequest(t, handler, http.MethodGet, "/v1/kubernetes/clusters/cluster-a/dr/protection", "", "tenant-a")
+	// The existing tenant resolver hides suspended workspaces until owner
+	// reconciliation. Preserve its 404 contract rather than granting a new
+	// read path that could leak suspended workspace state.
+	if result.Code != http.StatusNotFound || strings.Contains(result.Body.String(), `"protected":true`) {
+		t.Fatalf("suspended workspace bypassed owner-only admission: %d %s", result.Code, result.Body.String())
+	}
+	if runner.applyCalls != 0 {
+		t.Fatal("restart or suspension triggered a native KubeOne apply")
+	}
+}

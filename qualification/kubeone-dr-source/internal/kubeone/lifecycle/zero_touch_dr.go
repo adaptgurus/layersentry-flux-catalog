@@ -115,6 +115,9 @@ func publishZeroTouchDRIntent(ws Workspace, intent ZeroTouchDRIntent) error {
 // Under the same Portal's admission lock, a second notification cannot issue
 // a second intent. A restarted/foreign/ambiguous record blocks replay.
 func (p *Portal) queueZeroTouchDR(ws Workspace, primary ProvisionJob) error {
+	if ws.Suspended {
+		return ErrValidation
+	}
 	if p == nil || primary.ClusterID != ws.ClusterID || primary.Status != "SUCCEEDED" ||
 		primary.EvidenceLabel != "LIVE_PROVEN" || primary.ID == "" {
 		return ErrValidation

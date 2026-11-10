@@ -1,5 +1,5 @@
 {
-  "source_commit": "68428b54a56b74dcc7ce78c8bc739142cf1b2f34",
+  "source_commit": "7e618f82a88339e604b427d394a552fbf27ebadb",
   "scope": "KubeOne and portal source-only qualification snapshot",
   "private_history_included": false,
   "live_configuration_included": false,
@@ -541,18 +541,18 @@
     },
     {
       "path": "internal/kubeone/lifecycle/zero_touch_dr.go",
-      "sha256": "170afafc2c02d82d9932bb0a3d48df075d456db3bf377155c99bffb16f01b53e",
-      "source_blob": "3f4e09ec121e3e03d441c7bfd1f6623884579bef"
+      "sha256": "b70e4ccc5e9a7638c07c472a99df2436840ccaa94b5e92ccae3a5ac6d1550d20",
+      "source_blob": "fdc9b9c98eacbaf0f7fef49d3df1f76475498f7b"
     },
     {
       "path": "internal/kubeone/lifecycle/zero_touch_dr_reconcile.go",
-      "sha256": "366b8db331ee543f348de72cdcc196b2bc5b442e2a1881a58fbf4a6cfd519561",
-      "source_blob": "d5864327505c03afb5fc05e388037c0d86fffa17"
+      "sha256": "f812883c8c91ff93143eae5370c3cecb53d592d9af7c92e58ac4bfed339ae6fc",
+      "source_blob": "6be401a544f340ff7cf28ec03ade07c85b791f10"
     },
     {
       "path": "internal/kubeone/lifecycle/zero_touch_dr_reconcile_test.go",
-      "sha256": "1d1e99869f3b036a30cf456862af01cee8e82e71c14bfd0ea21f7ae254a614e7",
-      "source_blob": "7c0c22f59a058f6892e1779954571f72e5ca31a2"
+      "sha256": "0d1aef50a8fdd08ef14a23d29c4b79c3c1ef03a6a604a8f89c63adc1c879cddc",
+      "source_blob": "3c5a48b3b298800c6ccfdb53394be8e488e05f49"
     },
     {
       "path": "internal/kubeone/lifecycle/zero_touch_dr_test.go",
