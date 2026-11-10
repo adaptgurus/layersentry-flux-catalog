@@ -30,11 +30,18 @@ func (p *Portal) ConfigureRecovery(config RecoveryConfig) error {
 		return err
 	}
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if p.recovery != nil {
+		p.mu.Unlock()
 		return fmt.Errorf("%w: recovery already configured", ErrValidation)
 	}
 	p.recovery = manager
+	p.mu.Unlock()
+	// Restart may occur after the primary SUCCESS receipt was durably written
+	// but before zero-touch enrollment was queued. Reconcile server-owned
+	// local intent only; never re-run the original native KubeOne operation.
+	// Any ambiguous journal stays blocked and visible through the read-only
+	// protection endpoint.
+	p.reconcileZeroTouchDRAfterStartup()
 	return nil
 }
 
