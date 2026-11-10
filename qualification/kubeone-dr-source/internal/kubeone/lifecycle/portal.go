@@ -1064,9 +1064,16 @@ func (p *Portal) runProvision(key string, workspace Workspace, job ProvisionJob,
 	// A failed terminal publication leaves the durable RUNNING intent (or an
 	// unreadable result), never retry authority. Restart readback must classify
 	// it UNKNOWN; releasing this lock does not report durable success.
-	_ = writeBoundedJob(workspace, provisionJobPath(workspace), ".layersentry-provision-*.tmp", job)
+	published := writeBoundedJob(workspace, provisionJobPath(workspace), ".layersentry-provision-*.tmp", job)
 	delete(p.running, key)
 	p.mu.Unlock()
+	// The customer already submitted the one permitted provision request.
+	// Enrollment is server-owned and starts only after the primary source
+	// result is durably SUCCEEDED, never on a merely healthy UNKNOWN apply.
+	// Missing DR site/credentials/controller cannot mark this cluster protected.
+	if published == nil && job.Status == "SUCCEEDED" {
+		_ = p.queueZeroTouchDR(workspace, job)
+	}
 }
 
 func (p *Portal) controlPlaneJob(w http.ResponseWriter, r *http.Request) {
@@ -1238,6 +1245,7 @@ func (p *Portal) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/kubernetes/clusters/{id}/dr", p.getDRPolicy)
 	mux.HandleFunc("PUT /v1/kubernetes/clusters/{id}/dr", p.updateDRPolicy)
 	mux.HandleFunc("POST /v1/kubernetes/clusters/{id}/dr/validate", p.validateDRPolicy)
+	mux.HandleFunc("GET /v1/kubernetes/clusters/{id}/dr/protection", p.getZeroTouchDRProtection)
 	mux.HandleFunc("GET /v1/kubernetes/clusters/{id}/dr/automation", p.getDRAutomation)
 	mux.HandleFunc("GET /v1/kubernetes/clusters/{id}/dr/transition", p.getDRTransition)
 	mux.HandleFunc("POST /v1/kubernetes/clusters/{id}/dr/complete", p.completeDRTransition)

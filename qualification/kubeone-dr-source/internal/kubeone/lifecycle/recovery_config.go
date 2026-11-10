@@ -86,7 +86,20 @@ type DRAutomationPolicy struct {
 	MaxBackupAgeSeconds   int    `json:"max_backup_age_seconds"`
 	MaxRPOSeconds         int    `json:"max_rpo_seconds"`
 }
+
+// ZeroTouchDRPolicy is installed by a platform administrator, never supplied
+// by the customer's cluster-provision request. One protected primary maps to
+// exactly one selected DR site. This policy schedules enrollment only; it
+// never grants credential issuance, fencing, or automatic failover rights.
+type ZeroTouchDRPolicy struct {
+	Tenant          string `json:"tenant"`
+	SourceClusterID string `json:"source_cluster_id"`
+	TargetClusterID string `json:"target_cluster_id"`
+	Enabled         bool   `json:"enabled"`
+}
+
 type RecoveryConfig struct {
+	ZeroTouchDR  []ZeroTouchDRPolicy  `json:"zero_touch_dr,omitempty"`
 	DRExecutions []DRExecutionProfile `json:"dr_executions,omitempty"`
 	DRAutomation []DRAutomationPolicy `json:"dr_automation,omitempty"`
 	StagingRoot  string               `json:"staging_root"` // private LOCAL non-NFS snapshot staging
@@ -143,6 +156,7 @@ func LoadRecoveryConfig(path string) (RecoveryConfig, error) {
 
 func (cfg RecoveryConfig) Validate() error {
 	if len(cfg.NFSTargets) == 0 || len(cfg.NFSTargets) > 32 ||
+		len(cfg.ZeroTouchDR) > 64 ||
 		len(cfg.DRTargets) > 64 || len(cfg.DRExecutions) > 64 || len(cfg.DRAutomation) > 64 || !filepath.IsAbs(cfg.ResticBinary) ||
 		filepath.Clean(cfg.ResticBinary) != cfg.ResticBinary ||
 		!filepath.IsAbs(cfg.StagingRoot) || filepath.Clean(cfg.StagingRoot) != cfg.StagingRoot {
@@ -201,6 +215,32 @@ func (cfg RecoveryConfig) Validate() error {
 			return fmt.Errorf("%w: duplicate DR registration", ErrValidation)
 		}
 		targets[key] = true
+	}
+	// Zero-touch enrollment is a centrally selected single DR target per
+	// source cluster. It must never silently select from several sites or
+	// cross a tenant boundary. The target can be provisioned later, but the
+	// server-owned DR site mapping must already be explicitly registered.
+	selectedSources := map[string]bool{}
+	selectedTargets := map[string]bool{}
+	for _, policy := range cfg.ZeroTouchDR {
+		key := registryKey(policy.Tenant, policy.SourceClusterID)
+		targetKey := registryKey(policy.Tenant, policy.TargetClusterID)
+		registered := false
+		for _, target := range cfg.DRTargets {
+			if target.Tenant == policy.Tenant && target.SourceClusterID == policy.SourceClusterID &&
+				target.TargetClusterID == policy.TargetClusterID {
+				registered = true
+				break
+			}
+		}
+		if policy.Tenant == "" || len(policy.Tenant) > 128 || strings.ContainsAny(policy.Tenant, "\x00\r\n/") ||
+			!policy.Enabled || !recoveryIDPattern.MatchString(policy.SourceClusterID) ||
+			!recoveryIDPattern.MatchString(policy.TargetClusterID) || policy.SourceClusterID == policy.TargetClusterID ||
+			!registered || selectedSources[key] || selectedTargets[targetKey] {
+			return fmt.Errorf("%w: zero-touch DR must select one registered distinct same-tenant site for each source and target", ErrValidation)
+		}
+		selectedSources[key] = true
+		selectedTargets[targetKey] = true
 	}
 	// An execution profile is a server-registered qualified source/target
 	// pair; it does not create fencing credentials or grant itself trust.
